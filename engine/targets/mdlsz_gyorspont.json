@@ -1,0 +1,20 @@
+{
+  "id": "mdlsz_gyorspont",
+  "name": "MDLSz gyorspont lőlap",
+  "description": "Koncentrikus lőlap, 1–13 pont. A fekete korong széle a 6-os gyűrű, a fekete gyűrűk 7–10, a fehér belső korongban 11 és 12, a legbelső kör 13.",
+  "ring_count": 13,
+  "ring_spacing_mm": 8.0,
+  "pellet_diameter_mm": 4.5,
+  "black_outer_ring": 6,
+  "black_inner_ring": 11,
+  "labels": {
+    "axis": "horizontal",
+    "rings": [5, 6, 7, 8, 9, 10, 11, 12],
+    "half_height_rings": 0.6
+  },
+  "scoring": {
+    "line_touch_counts_higher": true,
+    "borderline_mm": 1.5,
+    "edge_tolerance_mm": 0.15
+  }
+}
