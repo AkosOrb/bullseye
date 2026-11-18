@@ -46,7 +46,7 @@ class SheetPainter extends CustomPainter {
       canvas.drawCircle(c, r, Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke + 2.5 * labelScale
-        ..color = Colors.white.withValues(alpha: 0.85));
+        ..color = kInk.withValues(alpha: 0.8));
       canvas.drawCircle(c, r, Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
@@ -72,8 +72,8 @@ class SheetPainter extends CustomPainter {
         text: TextSpan(
           text: text,
           style: TextStyle(
-            color: const Color(0xFF111111),
-            fontFamily: 'NotoSans',
+            color: kCream,
+            fontFamily: kFont,
             fontSize: fontSize,
             fontWeight: FontWeight.w700,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -134,7 +134,7 @@ class SheetPainter extends CustomPainter {
     }
     for (final (box, _, col, tp, padX, padY) in labels) {
       final rr = RRect.fromRectAndRadius(box, Radius.circular(4 * labelScale));
-      canvas.drawRRect(rr, Paint()..color = Colors.white.withValues(alpha: 0.94));
+      canvas.drawRRect(rr, Paint()..color = kInk.withValues(alpha: 0.92));
       canvas.drawRRect(rr, Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5 * labelScale

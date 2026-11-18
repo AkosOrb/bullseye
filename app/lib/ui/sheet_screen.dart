@@ -146,32 +146,44 @@ class _SheetScreenState extends State<SheetScreen> {
       ),
       body: Column(
         children: [
-          // fejléc: lövésszám és összpontszám
+          // fejléc: nagy összpontszám, mellette a lövésszám és a jelzések paneljei
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text('$total',
-                    style: t.textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
-                const SizedBox(width: 6),
+                    style: t.textTheme.displayLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        height: 0.95,
+                        letterSpacing: -2,
+                        fontFeatures: const [FontFeature.tabularFigures()])),
+                const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text('pont', style: t.textTheme.titleMedium?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+                  child: Text('pont', style: t.textTheme.titleLarge?.copyWith(color: kTaupe)),
                 ),
                 const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('${sheet.shots.length} / ${sheet.expectedShots} lövés', style: t.textTheme.titleSmall),
-                      if (checks.isNotEmpty)
-                        Text('${checks.length} ellenőrizendő',
-                            style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Panel(
+                      color: sheet.shots.length == sheet.expectedShots ? kTaupe : kCoral,
+                      radius: 14,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Text('${sheet.shots.length} / ${sheet.expectedShots} lövés',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                    if (checks.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Panel(
+                        color: kYellow,
+                        radius: 14,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Text('${checks.length} ellenőrizendő', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -206,14 +218,13 @@ class _SheetScreenState extends State<SheetScreen> {
   }
 
   Widget _buildViewer(List<ShotView> views) {
-    final t = Theme.of(context);
     return LayoutBuilder(builder: (context, box) {
       final fit = _fitScale(box);
       final w = sheet.imageW * fit, h = sheet.imageH * fit;
       final photoPerScreen = 1 / (fit * _viewScale);
       return ClipRect(
         child: Container(
-          color: t.colorScheme.surfaceContainerHighest,
+          color: const Color(0xFF0E0A06),
           alignment: Alignment.center,
           child: InteractiveViewer(
             transformationController: _tc,
@@ -533,11 +544,11 @@ class SheetDetails extends StatelessWidget {
         Text('Részletek', style: t.textTheme.titleLarge),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: StatTile(label: 'Összesen', value: '$total')),
+          Expanded(child: StatTile(label: 'Összesen', value: '$total', color: kOrange)),
           const SizedBox(width: 8),
           Expanded(
               child: StatTile(
-                  label: 'Átlag / lövés', value: views.isEmpty ? '–' : fmtNum(total / views.length, 2))),
+                  label: 'Átlag / lövés', value: views.isEmpty ? '–' : fmtNum(total / views.length, 2), color: kYellow)),
         ]),
         const SizedBox(height: 8),
         Row(children: [
@@ -545,13 +556,15 @@ class SheetDetails extends StatelessWidget {
               child: StatTile(
                   label: 'Legjobb lövés',
                   value: sorted.isEmpty ? '–' : '${sorted.first.score}',
-                  sub: sorted.isEmpty ? null : '${sorted.first.index}. lövés')),
+                  sub: sorted.isEmpty ? null : '${sorted.first.index}. lövés',
+                  color: kCream)),
           const SizedBox(width: 8),
           Expanded(
               child: StatTile(
                   label: 'Leggyengébb lövés',
                   value: sorted.isEmpty ? '–' : '${sorted.last.score}',
-                  sub: sorted.isEmpty ? null : '${sorted.last.index}. lövés')),
+                  sub: sorted.isEmpty ? null : '${sorted.last.index}. lövés',
+                  color: kTaupe)),
         ]),
         const SectionHeader('Lövések gyűrűnként'),
         Card(

@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../data/models.dart';
 import '../data/store.dart';
+import 'theme.dart';
 
 String fmtDate(DateTime d) => DateFormat('y. MMMM d., EEEE', 'hu').format(d);
 String fmtShortDate(DateTime d) => DateFormat('y. MM. dd.', 'hu').format(d);
@@ -42,7 +43,7 @@ class EmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 40, color: t.colorScheme.onSurfaceVariant),
+              Icon(icon, size: 48, color: kOrange),
               const SizedBox(height: 16),
               Text(title, style: t.textTheme.titleLarge, textAlign: TextAlign.center),
               const SizedBox(height: 8),
@@ -65,38 +66,68 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Kis statisztikai csempe: címke + érték.
-class StatTile extends StatelessWidget {
-  const StatTile({super.key, required this.label, required this.value, this.sub});
-  final String label;
-  final String value;
-  final String? sub;
+/// Színes, lekerekített panel sötét tintával (a műszerfal-stílus alapeleme).
+class Panel extends StatelessWidget {
+  const Panel({super.key, required this.color, required this.child, this.padding = const EdgeInsets.all(16), this.radius = 22});
+  final Color color;
+  final Widget child;
+  final EdgeInsets padding;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
+    final ink = inkOn(color);
     final t = Theme.of(context);
-    return Card(
+    return DecoratedBox(
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(radius)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: t.textTheme.labelMedium?.copyWith(color: t.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 4),
-            Text(value,
-                style: t.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()])),
-            if (sub != null)
-              Text(sub!, style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
-          ],
+        padding: padding,
+        child: IconTheme.merge(
+          data: IconThemeData(color: ink),
+          child: DefaultTextStyle.merge(style: t.textTheme.bodyMedium?.copyWith(color: ink), child: child),
         ),
       ),
     );
   }
 }
 
-/// Figyelmeztető sáv (pl. lövésszám-eltérés).
+/// Statisztikai csempe: kisbetűs címke, nagy szám, színes panelen.
+class StatTile extends StatelessWidget {
+  const StatTile({super.key, required this.label, required this.value, this.sub, this.color});
+  final String label;
+  final String value;
+  final String? sub;
+  /// A panel színe; ha nincs megadva, a [StatGrid] osztja ki.
+  final Color? color;
+
+  StatTile withColor(Color c) => StatTile(key: key, label: label, value: value, sub: sub, color: color ?? c);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final bg = color ?? kCream;
+    final ink = inkOn(bg);
+    return Panel(
+      color: bg,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label.toLowerCase(), style: t.textTheme.labelLarge?.copyWith(color: ink, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 2),
+          Text(value,
+              style: t.textTheme.headlineMedium?.copyWith(
+                  color: ink, fontWeight: FontWeight.w500, height: 1.1, fontFeatures: const [FontFeature.tabularFigures()])),
+          if (sub != null)
+            Text(sub!, style: t.textTheme.bodySmall?.copyWith(color: ink.withValues(alpha: 0.75))),
+        ],
+      ),
+    );
+  }
+}
+
+/// Figyelmeztető sáv (pl. lövésszám-eltérés): korall panel.
 class NoticeCard extends StatelessWidget {
   const NoticeCard({super.key, required this.text, this.actionLabel, this.onAction, this.icon = Icons.info_outline});
   final String text;
@@ -107,19 +138,21 @@ class NoticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: t.colorScheme.tertiaryContainer.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: t.colorScheme.tertiary.withValues(alpha: 0.35)),
-      ),
-      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+    return Panel(
+      color: kCoral,
+      radius: 18,
+      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: t.colorScheme.onTertiaryContainer),
+          Icon(icon, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onTertiaryContainer))),
-          if (actionLabel != null) TextButton(onPressed: onAction, child: Text(actionLabel!)),
+          Expanded(child: Text(text, style: t.textTheme.bodyMedium?.copyWith(color: kInk, fontWeight: FontWeight.w500))),
+          if (actionLabel != null)
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(foregroundColor: kInk, textStyle: const TextStyle(fontWeight: FontWeight.w700, fontFamily: kFont)),
+              child: Text(actionLabel!),
+            ),
         ],
       ),
     );
@@ -137,7 +170,7 @@ class SectionHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
       child: Row(children: [
-        Expanded(child: Text(text, style: t.textTheme.titleSmall?.copyWith(color: t.colorScheme.onSurfaceVariant))),
+        Expanded(child: Text(text.toLowerCase(), style: t.textTheme.titleSmall?.copyWith(color: kTaupe, fontWeight: FontWeight.w500, letterSpacing: 0.3))),
         ?trailing,
       ]),
     );
@@ -155,14 +188,16 @@ class StatGrid extends StatelessWidget {
       if (rows.isNotEmpty) rows.add(const SizedBox(height: 8));
       rows.add(IntrinsicHeight(
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Expanded(child: children[i]),
+          Expanded(child: _tone(children[i], i)),
           const SizedBox(width: 8),
-          Expanded(child: i + 1 < children.length ? children[i + 1] : const SizedBox()),
+          Expanded(child: i + 1 < children.length ? _tone(children[i + 1], i + 1) : const SizedBox()),
         ]),
       ));
     }
     return Column(mainAxisSize: MainAxisSize.min, children: rows);
   }
+
+  static Widget _tone(Widget w, int i) => w is StatTile ? w.withColor(kPanelTones[i % kPanelTones.length]) : w;
 }
 
 

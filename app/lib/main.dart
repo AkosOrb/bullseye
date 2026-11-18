@@ -27,6 +27,7 @@ class BullseyeApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
+        themeMode: ThemeMode.dark,
         locale: const Locale('hu'),
         home: const HomeShell(),
       ),

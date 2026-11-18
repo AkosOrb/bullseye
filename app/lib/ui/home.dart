@@ -7,6 +7,7 @@ import 'new_sheet.dart';
 import 'session_screen.dart';
 import 'settings_screen.dart';
 import 'stats_screen.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 class HomeShell extends StatefulWidget {
@@ -122,14 +123,19 @@ class _SessionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('${s.total}',
-                      style: t.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()])),
-                  Text('pont', style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
-                ],
+              Panel(
+                color: kOrange,
+                radius: 16,
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('${s.total}',
+                        style: t.textTheme.headlineSmall?.copyWith(
+                            color: kInk, fontWeight: FontWeight.w500, fontFeatures: const [FontFeature.tabularFigures()])),
+                    Text('pont', style: t.textTheme.bodySmall?.copyWith(color: kInk)),
+                  ],
+                ),
               ),
             ],
           ),

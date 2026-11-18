@@ -275,7 +275,7 @@ class _TargetPainter extends CustomPainter {
     Offset at(double x, double y) => c + Offset(x * k, -y * k);
     // fekete korong + gyűrűk
     canvas.drawCircle(c, spec.blackRadius * spec.ringSpacingMm * k, Paint()..color = const Color(0xFF2B2B2B));
-    canvas.drawCircle(c, spec.whiteDiskRadius * spec.ringSpacingMm * k, Paint()..color = const Color(0xFFF2F2F2));
+    canvas.drawCircle(c, spec.whiteDiskRadius * spec.ringSpacingMm * k, Paint()..color = kCream);
     for (var ring = 1; ring <= spec.ringCount; ring++) {
       final r = spec.ringRadius(ring) * spec.ringSpacingMm * k;
       if (r > size.shortestSide / 2 + 1) continue;
@@ -296,7 +296,7 @@ class _TargetPainter extends CustomPainter {
       final ring = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = kSelectedColor;
+        ..color = kYellow;
       canvas.drawCircle(gc, g.spread * k, ring);
       canvas.drawLine(gc - const Offset(7, 0), gc + const Offset(7, 0), ring);
       canvas.drawLine(gc - const Offset(0, 7), gc + const Offset(0, 7), ring);

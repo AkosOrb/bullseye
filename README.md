@@ -67,7 +67,7 @@ flutter test                                        # motor + felület tesztek
 flutter test tool/screenshots_test.dart --update-goldens   # képernyőképek újragenerálása
 ```
 
-A PDF-exporthoz a Noto Sans betűtípus van beépítve (SIL Open Font License 1.1).
+Beépített betűtípusok: Space Grotesk (felület) és Noto Sans (PDF), mindkettő SIL Open Font License 1.1.
 
 ## A motor kipróbálása
 

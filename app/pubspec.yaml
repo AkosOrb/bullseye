@@ -68,6 +68,13 @@ flutter:
   assets:
     - assets/fonts/
   fonts:
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk_400Regular.ttf
+        - asset: assets/fonts/SpaceGrotesk_500Medium.ttf
+          weight: 500
+        - asset: assets/fonts/SpaceGrotesk_700Bold.ttf
+          weight: 700
     - family: NotoSans
       fonts:
         - asset: assets/fonts/NotoSans-Regular.ttf

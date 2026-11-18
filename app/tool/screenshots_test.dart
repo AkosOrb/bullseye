@@ -22,6 +22,14 @@ import 'package:material_ui/material_ui.dart';
 Future<void> _loadFonts() async {
   final reg = File('assets/fonts/NotoSans-Regular.ttf').readAsBytesSync();
   final bold = File('assets/fonts/NotoSans-Bold.ttf').readAsBytesSync();
+  final sg = [
+    for (final w in ['400Regular', '500Medium', '700Bold']) File('assets/fonts/SpaceGrotesk_$w.ttf').readAsBytesSync()
+  ];
+  final sgl = FontLoader('SpaceGrotesk');
+  for (final b in sg) {
+    sgl.addFont(Future.value(ByteData.view(b.buffer)));
+  }
+  await sgl.load();
   for (final fam in ['Roboto', 'NotoSans']) {
     final l = FontLoader(fam)
       ..addFont(Future.value(ByteData.view(reg.buffer)))
