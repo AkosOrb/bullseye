@@ -64,7 +64,7 @@ void main() {
         final res = analyze(rgb, TargetSpec.mdlszGyorspont, expected: 15);
         final jpg = im.encodeJpg(im.Image.fromBytes(width: rgb.w, height: rgb.h, bytes: rgb.d.buffer, numChannels: 3));
         await store.addSheet(session, jpg, rgb.w, rgb.h, res.geometry.toJson(), [
-          for (final s in res.shots) {'x': s.x, 'y': s.y, 'uncertain': s.uncertain, 'note': s.reason}
+          for (final s in res.shots) {'x': s.x, 'y': s.y, 'uncertain': s.uncertain, 'note': s.reason, if (s.radius != null) 'r': s.radius}
         ], 15);
       }
     });
@@ -149,6 +149,32 @@ void main() {
     await tester.tapAt(box.center);
     await tester.pump(const Duration(milliseconds: 300));
     expect(sheet.shots.length, 14);
+  });
+
+  testWidgets('gyűrűk megjelenítése és igazítása', (tester) async {
+    await setup(tester);
+    final sheet = store.sessions.first.sheets.first;
+    final before = sheet.total;
+    await tester.pumpWidget(app(SheetScreen(sheet: sheet)));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Gyűrűk megjelenítése'));
+    await settle(tester);
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('screens/07_rings.png'));
+    await tester.tap(find.text('Gyűrűk igazítása'));
+    await tester.pump(const Duration(milliseconds: 300));
+    for (var i = 0; i < 40; i++) {
+      await tester.tap(find.byTooltip('Jobbra'));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(sheet.geometry!.adjusted, isTrue);
+    expect(sheet.total, isNot(before));
+    await tester.tap(find.text('Visszaállítás'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(sheet.geometry!.adjusted, isFalse);
+    expect(sheet.total, before);
+    await tester.tap(find.text('Kész'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Gyűrűk igazítása'), findsOneWidget);
   });
 
   testWidgets('edzés és statisztika', (tester) async {

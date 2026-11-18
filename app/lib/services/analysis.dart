@@ -44,7 +44,7 @@ AnalysisOutput _run(Uint8List bytes, TargetSpec spec, int expected) {
         res.geometry.toJson(),
         [
           for (final s in res.shots)
-            {'x': s.x, 'y': s.y, 'uncertain': s.uncertain, 'note': s.reason}
+            {'x': s.x, 'y': s.y, 'uncertain': s.uncertain, 'note': s.reason, if (s.radius != null) 'r': s.radius}
         ],
         null,
       );

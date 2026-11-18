@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 
 import '../data/models.dart';
+import '../engine/pipeline.dart';
 import 'theme.dart';
 
 class SheetPainter extends CustomPainter {
@@ -16,6 +17,8 @@ class SheetPainter extends CustomPainter {
     this.selectedId,
     this.labelScale = 1.0,
     this.showLabels = true,
+    this.geometry,
+    this.showRings = false,
   });
 
   final List<ShotView> views;
@@ -25,6 +28,9 @@ class SheetPainter extends CustomPainter {
   /// A címkék mérete: 1/nagyítás, hogy nagyításkor is olvashatók maradjanak.
   final double labelScale;
   final bool showLabels;
+  final TargetGeometry? geometry;
+  /// A tábla gyűrűinek (pontozási szélének) rajzolása az ellenőrzéshez/igazításhoz.
+  final bool showRings;
 
   static Color colorFor(ShotView v, {bool selected = false}) {
     if (selected) return kSelectedColor;
@@ -36,11 +42,14 @@ class SheetPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final s = size.width / imageSize.width; // fotó px -> rajz px
-    final r = math.max(pelletRadius * 1.15 * s, 5.0);
     final stroke = 2.2 * labelScale;
+    final g = geometry;
+    if (showRings && g != null) _paintRings(canvas, g, s);
     final circles = <(Offset, double)>[];
     for (final v in views) {
       final c = Offset(v.shot.x * s, v.shot.y * s);
+      // a találati kör pontosan a pontozáskor használt méret (koromgyűrű)
+      final r = math.max((v.shot.radius ?? pelletRadius) * s, 4.0);
       final sel = v.shot.id == selectedId;
       final col = colorFor(v, selected: sel);
       canvas.drawCircle(c, r, Paint()
@@ -61,12 +70,13 @@ class SheetPainter extends CustomPainter {
     }
     if (!showLabels) return;
     final placed = <Rect>[];
-    final labels = <(Rect, Offset, Color, TextPainter, double, double)>[];
+    final labels = <(Rect, Offset, Color, TextPainter, double, double, double)>[];
     final fontSize = 12.5 * labelScale;
     for (final v in views) {
       final c = Offset(v.shot.x * s, v.shot.y * s);
       final sel = v.shot.id == selectedId;
       final col = colorFor(v, selected: sel);
+      final r = math.max((v.shot.radius ?? pelletRadius) * s, 4.0);
       final text = '${v.index}: ${v.score}${v.needsCheck ? '?' : ''}';
       final tp = TextPainter(
         text: TextSpan(
@@ -119,10 +129,10 @@ class SheetPainter extends CustomPainter {
       }
       best ??= Rect.fromLTWH(c.dx + r, c.dy - bh / 2, bw, bh);
       placed.add(best);
-      labels.add((best, c, col, tp, padX, padY));
+      labels.add((best, c, col, tp, padX, padY, r));
     }
     // Előbb a vezetővonalak, utána a címkék, hogy vonal ne takarjon szöveget.
-    for (final (box, c, col, _, _, _) in labels) {
+    for (final (box, c, col, _, _, _, r) in labels) {
       final nearest = Offset(box.center.dx.clamp(box.left, box.right), box.center.dy);
       if ((nearest - c).distance > r + 8 * labelScale) {
         final dir = (box.center - c);
@@ -132,7 +142,7 @@ class SheetPainter extends CustomPainter {
           ..strokeWidth = 1.2 * labelScale);
       }
     }
-    for (final (box, _, col, tp, padX, padY) in labels) {
+    for (final (box, _, col, tp, padX, padY, _) in labels) {
       final rr = RRect.fromRectAndRadius(box, Radius.circular(4 * labelScale));
       canvas.drawRRect(rr, Paint()..color = kInk.withValues(alpha: 0.92));
       canvas.drawRRect(rr, Paint()
@@ -149,6 +159,33 @@ class SheetPainter extends CustomPainter {
   static bool _circleHitsRect(Offset c, double r, Rect rect) {
     final p = _closestPoint(rect, c);
     return (p - c).distance < r;
+  }
+
+  void _paintRings(Canvas canvas, TargetGeometry g, double s) {
+    final w = 1.3 * labelScale;
+    final halo = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w + 2 * labelScale
+      ..color = kInk.withValues(alpha: 0.45);
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w
+      ..color = kOrange;
+    for (var k = 1; k <= g.spec.ringCount; k++) {
+      final pts = g.ringOutlineOrig(k, n: 96);
+      final path = Path()..moveTo(pts.first.$1 * s, pts.first.$2 * s);
+      for (final (x, y) in pts.skip(1)) {
+        path.lineTo(x * s, y * s);
+      }
+      path.close();
+      canvas.drawPath(path, halo);
+      canvas.drawPath(path, line);
+    }
+    final (cx, cy) = g.centerOrig;
+    final c = Offset(cx * s, cy * s);
+    final d = 8 * labelScale;
+    canvas.drawLine(c - Offset(d, 0), c + Offset(d, 0), line);
+    canvas.drawLine(c - Offset(0, d), c + Offset(0, d), line);
   }
 
   void _dashedCircle(Canvas canvas, Offset c, double r, Color col, double w) {

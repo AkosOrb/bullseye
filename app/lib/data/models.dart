@@ -9,6 +9,9 @@ class Shot {
   bool auto; // a felismerő találta (nem kézi hozzáadás)
   bool uncertain; // felismerési bizonytalanság (pl. szétbontott lyuk)
   String detectNote;
+  /// A találati kör sugara a fotón (px), a koromgyűrűből mérve vagy kézzel
+  /// igazítva; null = a névleges 4,5 mm-es lövedékméret.
+  double? radius;
 
   Shot({
     required this.id,
@@ -18,6 +21,7 @@ class Shot {
     this.auto = true,
     this.uncertain = false,
     this.detectNote = '',
+    this.radius,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +32,7 @@ class Shot {
         'auto': auto,
         'uncertain': uncertain,
         'note': detectNote,
+        if (radius != null) 'r': radius,
       };
 
   static Shot fromJson(Map<String, dynamic> j) => Shot(
@@ -38,6 +43,7 @@ class Shot {
         auto: j['auto'] as bool? ?? true,
         uncertain: j['uncertain'] as bool? ?? false,
         detectNote: j['note'] as String? ?? '',
+        radius: (j['r'] as num?)?.toDouble(),
       );
 }
 
@@ -92,7 +98,7 @@ class Sheet {
     final g = geometry;
     return [
       for (var i = 0; i < shots.length; i++)
-        ShotView(shots[i], i + 1, g?.scoreOrig(shots[i].x, shots[i].y)),
+        ShotView(shots[i], i + 1, g?.scoreOrig(shots[i].x, shots[i].y, radiusOrig: shots[i].radius)),
     ];
   }
 

@@ -69,13 +69,16 @@ class RingModel {
   }
 
   /// Előjeles távolság a k gyűrű pontozási szélétől (a vonal külső széle).
+  double halfWidthOf(int k) {
+    final hw = halfWidth[k];
+    if (hw != null) return hw;
+    final vals = halfWidth.values.where((v) => v > 0).toList();
+    return vals.isEmpty ? 0.0 : median(vals);
+  }
+
   double signedDistToRing(double x, double y, int k) {
     final (ccx, ccy, rr) = ringCircle(k);
-    var hw = halfWidth[k];
-    if (hw == null) {
-      final vals = halfWidth.values.where((v) => v > 0).toList();
-      hw = vals.isEmpty ? 0.0 : median(vals);
-    }
+    final hw = halfWidthOf(k);
     return math.sqrt((x - ccx) * (x - ccx) + (y - ccy) * (y - ccy)) - (rr + hw);
   }
 }

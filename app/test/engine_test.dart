@@ -43,6 +43,33 @@ void main() {
     expect(TargetSpec.mdlszGyorspont.regulationShots, 15);
   });
 
+  test('gyűrűk kézi igazítása: eltolás és nagyítás újrapontoz, mentés megőrzi', () {
+    final (rgb, _) = decodeForEngine(File('../testdata/2_eredeti.png').readAsBytesSync());
+    final res = analyze(rgb, TargetSpec.mdlszGyorspont, expected: 15);
+    final g = res.geometry;
+    final (cx, cy) = g.centerOrig;
+    expect(g.scoreOrig(cx, cy).score, 13);
+    // a gyűrűket a pont mellé toljuk 3 gyűrűtávolsággal: a középpont már nem 13-as
+    final (dx, dy) = g.deltaToCanon(3 * g.pxPerSpacingOrig, 0);
+    final moved = g.withAdjust(dx: dx, dy: dy);
+    expect(moved.scoreOrig(cx, cy).score, lessThanOrEqualTo(11));
+    final (mx, my) = moved.centerOrig;
+    expect(moved.scoreOrig(mx, my).score, 13);
+    // nagyítás: ugyanaz a pont magasabb pontot kap
+    final s0 = g.scoreOrig(cx + 5 * g.pxPerSpacingOrig, cy).score;
+    final big = g.withAdjust(scale: 1.2);
+    expect(big.scoreOrig(cx + 5 * g.pxPerSpacingOrig, cy).score, greaterThanOrEqualTo(s0));
+    final back = TargetGeometry.fromJson(moved.toJson());
+    expect(back.adjDx, closeTo(dx, 1e-9));
+    expect(back.scoreOrig(cx, cy).score, moved.scoreOrig(cx, cy).score);
+    // a lövésnyomok mért mérete a névleges közelében van
+    final rs = [for (final s in res.shots) if (s.radius != null) s.radius! / g.pelletRadiusOrig];
+    expect(rs, isNotEmpty);
+    for (final r in rs) {
+      expect(r, inInclusiveRange(0.6, 1.6));
+    }
+  });
+
   final gtFile = File('../testdata/ground_truth.json');
   final gt = jsonDecode(gtFile.readAsStringSync()) as Map<String, dynamic>;
   for (final name in gt.keys.toList()..sort()) {

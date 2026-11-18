@@ -127,6 +127,7 @@ class AppStore extends ChangeNotifier {
             y: (s['y'] as num).toDouble(),
             uncertain: s['uncertain'] as bool? ?? false,
             detectNote: s['note'] as String? ?? '',
+            radius: (s['r'] as num?)?.toDouble(),
           )
       ],
     );

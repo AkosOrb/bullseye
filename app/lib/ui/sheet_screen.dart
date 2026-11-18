@@ -24,6 +24,10 @@ class _SheetScreenState extends State<SheetScreen> {
   String? _selected;
   bool _addMode = false;
   bool _busy = false; // újrakeresés folyamatban
+  bool _showRings = false; // a tábla gyűrűinek megjelenítése
+  bool _ringEdit = false; // gyűrűk kézi igazítása
+  Offset? _ringDragLast;
+  int _pointers = 0;
   bool _dragging = false;
   Offset? _dragStartShot;
 
@@ -125,6 +129,16 @@ class _SheetScreenState extends State<SheetScreen> {
       appBar: AppBar(
         title: Text('${fmtShortDate(sheet.createdAt)} ${fmtTime(sheet.createdAt)}'),
         actions: [
+          if (sheet.geometry != null)
+            IconButton(
+              tooltip: _showRings ? 'Gyűrűk elrejtése' : 'Gyűrűk megjelenítése',
+              isSelected: _showRings || _ringEdit,
+              icon: const Icon(Icons.track_changes),
+              onPressed: () => setState(() {
+                _showRings = !_showRings;
+                if (!_showRings) _ringEdit = false;
+              }),
+            ),
           IconButton(
             tooltip: 'Táblázat és részletek',
             icon: const Icon(Icons.table_chart_outlined),
@@ -266,13 +280,18 @@ class _SheetScreenState extends State<SheetScreen> {
             transformationController: _tc,
             minScale: 1,
             maxScale: 8,
-            panEnabled: !_dragging,
+            panEnabled: !_dragging && !_ringEdit,
             child: SizedBox(
               width: w,
               height: h,
               child: Listener(
                 onPointerDown: (e) {
+                  _pointers++;
                   final p = e.localPosition / fit;
+                  if (_ringEdit) {
+                    _ringDragLast = _pointers == 1 ? p : null;
+                    return;
+                  }
                   final hit = _hitShot(p, photoPerScreen);
                   if (hit != null && hit.id == _selected && !_addMode) {
                     setState(() {
@@ -282,6 +301,15 @@ class _SheetScreenState extends State<SheetScreen> {
                   }
                 },
                 onPointerMove: (e) {
+                  if (_ringEdit) {
+                    final last = _ringDragLast;
+                    final g = sheet.geometry;
+                    if (last == null || g == null || _pointers != 1) return;
+                    final p = e.localPosition / fit;
+                    _moveRings(p.dx - last.dx, p.dy - last.dy);
+                    _ringDragLast = p;
+                    return;
+                  }
                   if (!_dragging) return;
                   final s = _selectedShot;
                   if (s == null) return;
@@ -293,14 +321,24 @@ class _SheetScreenState extends State<SheetScreen> {
                   });
                 },
                 onPointerUp: (_) {
+                  _pointers = (_pointers - 1).clamp(0, 10);
+                  if (_ringEdit && _ringDragLast != null) {
+                    _ringDragLast = null;
+                    _save();
+                  }
                   if (_dragging) {
                     setState(() => _dragging = false);
                     _save();
                   }
                 },
-                onPointerCancel: (_) => setState(() => _dragging = false),
+                onPointerCancel: (_) {
+                  _pointers = (_pointers - 1).clamp(0, 10);
+                  _ringDragLast = null;
+                  setState(() => _dragging = false);
+                },
                 child: GestureDetector(
                   onTapUp: (d) {
+                    if (_ringEdit) return;
                     final p = d.localPosition / fit;
                     if (_addMode) {
                       _addShotAt(p);
@@ -320,6 +358,10 @@ class _SheetScreenState extends State<SheetScreen> {
                           pelletRadius: sheet.geometry?.pelletRadiusOrig ?? 10,
                           selectedId: _selected,
                           labelScale: 1 / _viewScale,
+                          geometry: sheet.geometry,
+                          showRings: _showRings || _ringEdit,
+                          // igazítás közben a címkék ne takarják a gyűrűket
+                          showLabels: !_ringEdit,
                         ),
                       ),
                     ],
@@ -342,7 +384,26 @@ class _SheetScreenState extends State<SheetScreen> {
         child: Container(
           decoration: BoxDecoration(border: Border(top: BorderSide(color: t.dividerTheme.color ?? t.dividerColor))),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          child: sel != null
+          child: _ringEdit && sheet.geometry != null
+              ? _RingEditor(
+                  adjusted: sheet.geometry!.adjusted,
+                  onMove: (dx, dy) {
+                    final px = 0.6 / _viewScale;
+                    _moveRings(dx * px, dy * px);
+                    _save();
+                  },
+                  onScale: (f) {
+                    final g = sheet.geometry!;
+                    setState(() => sheet.geometry = g.withAdjust(scale: (g.adjScale * f).clamp(0.8, 1.25)));
+                    _save();
+                  },
+                  onReset: () {
+                    setState(() => sheet.geometry = sheet.geometry!.withAdjust(dx: 0, dy: 0, scale: 1));
+                    _save();
+                  },
+                  onDone: () => setState(() => _ringEdit = false),
+                )
+              : sel != null
               ? _ShotEditor(
                   view: sel,
                   spec: sheet.spec,
@@ -361,6 +422,12 @@ class _SheetScreenState extends State<SheetScreen> {
                     });
                     _save();
                   },
+                  onRadius: (f) {
+                    final base = sheet.geometry?.pelletRadiusOrig ?? 10;
+                    final cur = sel.shot.radius ?? base;
+                    setState(() => sel.shot.radius = (cur * f).clamp(base * 0.5, base * 2.0));
+                    _save();
+                  },
                   onDelete: _deleteSelected,
                   onClose: () => setState(() => _selected = null),
                 )
@@ -370,7 +437,9 @@ class _SheetScreenState extends State<SheetScreen> {
                       child: Text(
                         _addMode
                             ? 'Koppints a lövés helyére a fotón.'
-                            : checks.isNotEmpty
+                            : _showRings
+                                ? 'A narancs vonalak a gyűrűk pontozási szélét mutatják. Ha elcsúsztak, igazítsd őket.'
+                                : checks.isNotEmpty
                                 ? 'A sárgával jelölt lövéseket nézőkével ellenőrizd. Koppints egy lövésre a javításhoz.'
                                 : 'Koppints egy lövésre a javításhoz. Kijelölés után húzással mozgatható.',
                         style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
@@ -379,6 +448,15 @@ class _SheetScreenState extends State<SheetScreen> {
                     const SizedBox(width: 12),
                     _addMode
                         ? OutlinedButton(onPressed: () => setState(() => _addMode = false), child: const Text('Mégse'))
+                        : _showRings
+                        ? FilledButton.tonalIcon(
+                            onPressed: () => setState(() {
+                              _ringEdit = true;
+                              _selected = null;
+                            }),
+                            icon: const Icon(Icons.open_with),
+                            label: const Text('Gyűrűk igazítása'),
+                          )
                         : FilledButton.tonalIcon(
                             onPressed: () => setState(() {
                               _addMode = true;
@@ -392,6 +470,14 @@ class _SheetScreenState extends State<SheetScreen> {
         ),
       ),
     );
+  }
+
+  /// A gyűrűk eltolása a fotón mért (dx, dy) képponttal; a pontok azonnal újraszámolódnak.
+  void _moveRings(double dx, double dy) {
+    final g = sheet.geometry;
+    if (g == null) return;
+    final (cx, cy) = g.deltaToCanon(dx, dy);
+    setState(() => sheet.geometry = g.withAdjust(dx: g.adjDx + cx, dy: g.adjDy + cy));
   }
 
   Future<void> _editExpected() async {
@@ -441,6 +527,7 @@ class _SheetScreenState extends State<SheetScreen> {
                 y: (m['y'] as num).toDouble(),
                 uncertain: m['uncertain'] as bool? ?? false,
                 detectNote: m['note'] as String? ?? '',
+                radius: (m['r'] as num?)?.toDouble(),
               )
           ];
           _selected = null;
@@ -514,7 +601,9 @@ class _ShotEditor extends StatelessWidget {
     required this.onConfirm,
     required this.onDelete,
     required this.onClose,
+    required this.onRadius,
   });
+  final ValueChanged<double> onRadius;
   final ShotView view;
   final dynamic spec;
   final ValueChanged<int> onScore;
@@ -545,6 +634,17 @@ class _ShotEditor extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: t.textTheme.bodySmall?.copyWith(color: v.needsCheck ? kCheckColor.withValues(alpha: 1) : t.colorScheme.onSurfaceVariant)),
             ),
+            Text('kör', style: t.textTheme.labelMedium?.copyWith(color: kTaupe)),
+            IconButton(
+                tooltip: 'Kisebb találati kör',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => onRadius(1 / 1.06),
+                icon: const Icon(Icons.zoom_in_map, size: 20)),
+            IconButton(
+                tooltip: 'Nagyobb találati kör',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => onRadius(1.06),
+                icon: const Icon(Icons.zoom_out_map, size: 20)),
             IconButton(tooltip: 'Kijelölés megszüntetése', onPressed: onClose, icon: const Icon(Icons.close)),
           ],
         ),
@@ -698,6 +798,62 @@ class SheetDetails extends StatelessWidget {
             ],
           ]),
         ),
+      ],
+    );
+  }
+}
+
+/// A tábla gyűrűinek kézi igazítása: eltolás nyilakkal (vagy húzással a fotón) és méretezés.
+class _RingEditor extends StatelessWidget {
+  const _RingEditor({
+    required this.adjusted,
+    required this.onMove,
+    required this.onScale,
+    required this.onReset,
+    required this.onDone,
+  });
+  final bool adjusted;
+  final void Function(double dx, double dy) onMove;
+  final ValueChanged<double> onScale;
+  final VoidCallback onReset;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    Widget arrow(IconData i, String tip, double dx, double dy) => IconButton.outlined(
+        tooltip: tip, visualDensity: VisualDensity.compact, onPressed: () => onMove(dx, dy), icon: Icon(i, size: 20));
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Expanded(
+            child: Text('Húzd a gyűrűket a helyükre a fotón, vagy használd a gombokat. A pontok azonnal frissülnek.',
+                style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+          ),
+          if (adjusted) TextButton(onPressed: onReset, child: const Text('Visszaállítás')),
+        ]),
+        const SizedBox(height: 6),
+        Row(children: [
+          arrow(Icons.arrow_back, 'Balra', -1, 0),
+          arrow(Icons.arrow_upward, 'Fel', 0, -1),
+          arrow(Icons.arrow_downward, 'Le', 0, 1),
+          arrow(Icons.arrow_forward, 'Jobbra', 1, 0),
+          const SizedBox(width: 8),
+          IconButton.outlined(
+              tooltip: 'Gyűrűk kicsinyítése',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => onScale(1 / 1.003),
+              icon: const Icon(Icons.zoom_in_map, size: 20)),
+          IconButton.outlined(
+              tooltip: 'Gyűrűk nagyítása',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => onScale(1.003),
+              icon: const Icon(Icons.zoom_out_map, size: 20)),
+          const Spacer(),
+          FilledButton(onPressed: onDone, child: const Text('Kész')),
+        ]),
       ],
     );
   }
