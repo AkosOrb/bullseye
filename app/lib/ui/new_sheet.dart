@@ -2,6 +2,7 @@
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -39,7 +40,11 @@ Future<void> startNewSheet(BuildContext context, {Session? session, SheetSource?
   );
   if (source == null || !context.mounted) return;
   Uint8List? bytes;
-  if (source == SheetSource.camera) {
+  if (source == SheetSource.camera && kIsWeb) {
+    // Böngészőben a telefon saját kamerája nyílik meg.
+    final f = await ImagePicker().pickImage(source: ImageSource.camera);
+    bytes = await f?.readAsBytes();
+  } else if (source == SheetSource.camera) {
     bytes = await Navigator.of(context).push<Uint8List>(MaterialPageRoute(builder: (_) => const CaptureScreen()));
   } else {
     final f = await ImagePicker().pickImage(source: ImageSource.gallery);

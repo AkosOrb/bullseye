@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 
@@ -182,8 +181,7 @@ class _SheetRow extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: Image.file(File(sheet.imagePath), width: 48, height: 48, fit: BoxFit.cover, cacheWidth: 144,
-            errorBuilder: (_, _, _) => const SizedBox(width: 48, height: 48)),
+        child: SizedBox(width: 48, height: 48, child: SheetImage(sheet: sheet, cacheWidth: 144)),
       ),
       title: Text('$index. lap'),
       subtitle: Text(sub),

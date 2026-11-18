@@ -24,6 +24,13 @@ Fotó alapján felismeri a találatokat egy lőlapon, kiszámolja a pontszámot,
 2. A zip-ből kibontott `app-release.apk`-t másold a telefonra, és nyisd meg.
    A telefon rákérdez, hogy engedélyezed-e az ismeretlen forrásból való telepítést: engedélyezd.
 
+### iPhone (és bármilyen telefon) – webes változat
+
+Nyisd meg Safariban: **https://akosorb.github.io/bullseye/**, majd a Megosztás gombbal
+válaszd a **„Főképernyőhöz adás”** lehetőséget. Így ikonnal indul, mint egy app.
+Az adatok a telefonon, a böngésző tárolójában maradnak. Minden feltöltés után
+automatikusan frissül (`.github/workflows/web.yml`).
+
 ### Android vagy iOS – saját gépről
 
 1. Telepítsd a [Flutter SDK-t](https://docs.flutter.dev/get-started/install) és az Android Studiót.

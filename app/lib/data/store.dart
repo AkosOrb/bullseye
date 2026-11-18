@@ -1,48 +1,48 @@
-// Helyi adattárolás: JSON fájlok és a lapfotók az app saját mappájában.
+// Helyi adattárolás: JSON és a lapfotók (telefonon fájlok, böngészőben IndexedDB).
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:material_ui/material_ui.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../engine/pipeline.dart';
+import 'blobs.dart';
 import 'models.dart';
 
 const _uuid = Uuid();
 String newId() => _uuid.v4();
 
 class AppStore extends ChangeNotifier {
-  AppStore._(this._dir);
+  AppStore._(this._blobs);
 
-  final Directory _dir;
+  final Blobs _blobs;
   final List<Session> sessions = [];
   AppSettings settings = AppSettings();
+  final Map<String, Future<Uint8List?>> _images = {};
 
-  static Future<AppStore> open({Directory? dir}) async {
-    final base = dir ?? Directory(p.join((await getApplicationDocumentsDirectory()).path, 'bullseye'));
-    await Directory(p.join(base.path, 'sheets')).create(recursive: true);
-    final s = AppStore._(base);
+  static const _sessionsKey = 'sessions.json';
+  static const _settingsKey = 'settings.json';
+
+  /// [dir]: a tároló mappája (teszthez); böngészőben nincs jelentősége.
+  static Future<AppStore> open({String? dir}) async {
+    final s = AppStore._(await openBlobs(dir: dir));
     await s._load();
     return s;
   }
 
-  File get _sessionsFile => File(p.join(_dir.path, 'sessions.json'));
-  File get _settingsFile => File(p.join(_dir.path, 'settings.json'));
-  String imagePathFor(String sheetId) => p.join(_dir.path, 'sheets', '$sheetId.jpg');
-  String get exportDir => p.join(_dir.path, 'export');
+  /// A lap fotója (gyorsítótárazva).
+  Future<Uint8List?> imageBytes(Sheet sheet) =>
+      _images.putIfAbsent(sheet.imagePath, () => _blobs.readBytes(sheet.imagePath));
 
   Future<void> _load() async {
     try {
-      if (await _settingsFile.exists()) {
-        settings = AppSettings.fromJson(jsonDecode(await _settingsFile.readAsString()) as Map<String, dynamic>);
-      }
+      final t = await _blobs.readText(_settingsKey);
+      if (t != null) settings = AppSettings.fromJson(jsonDecode(t) as Map<String, dynamic>);
     } catch (_) {}
     try {
-      if (await _sessionsFile.exists()) {
-        final l = jsonDecode(await _sessionsFile.readAsString()) as List;
+      final t = await _blobs.readText(_sessionsKey);
+      if (t != null) {
+        final l = jsonDecode(t) as List;
         sessions
           ..clear()
           ..addAll([
@@ -56,10 +56,8 @@ class AppStore extends ChangeNotifier {
   void _sort() => sessions.sort((a, b) => b.date.compareTo(a.date));
 
   Future<void> save() async {
-    final tmp = File('${_sessionsFile.path}.tmp');
-    await tmp.writeAsString(jsonEncode([for (final s in sessions) s.toJson()]));
-    await tmp.rename(_sessionsFile.path);
-    await _settingsFile.writeAsString(jsonEncode(settings.toJson()));
+    await _blobs.writeText(_sessionsKey, jsonEncode([for (final s in sessions) s.toJson()]));
+    await _blobs.writeText(_settingsKey, jsonEncode(settings.toJson()));
   }
 
   /// Változás után: értesítés + mentés.
@@ -108,8 +106,9 @@ class AppStore extends ChangeNotifier {
   Future<Sheet> addSheet(Session session, Uint8List jpeg, int w, int h, Map<String, dynamic>? geometry,
       List<Map<String, dynamic>> shots, int expected) async {
     final id = newId();
-    final path = imagePathFor(id);
-    await File(path).writeAsBytes(jpeg);
+    final path = 'sheets/$id.jpg';
+    await _blobs.writeBytes(path, jpeg);
+    _images[path] = Future.value(jpeg);
     final spec = settings.spec;
     final sheet = Sheet(
       id: id,
@@ -140,17 +139,15 @@ class AppStore extends ChangeNotifier {
     final s = sessionOf(sheet);
     s?.sheets.remove(sheet);
     if (s != null && s.sheets.isEmpty) sessions.remove(s);
-    try {
-      await File(sheet.imagePath).delete();
-    } catch (_) {}
+    await _blobs.delete(sheet.imagePath);
+    _images.remove(sheet.imagePath);
     await changed();
   }
 
   Future<void> deleteSession(Session s) async {
     for (final sh in s.sheets) {
-      try {
-        await File(sh.imagePath).delete();
-      } catch (_) {}
+      await _blobs.delete(sh.imagePath);
+      _images.remove(sh.imagePath);
     }
     sessions.remove(s);
     await changed();

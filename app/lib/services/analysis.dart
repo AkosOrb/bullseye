@@ -1,6 +1,9 @@
 // A képfeldolgozás háttérszálon (isolate) fut, hogy a felület ne akadjon.
+// Böngészőben nincs isolate: ott a fő szálon fut, a homokóra kirajzolása után.
 import 'dart:isolate';
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:image/image.dart' as im;
 
@@ -18,8 +21,17 @@ class AnalysisOutput {
   AnalysisOutput(this.jpeg, this.width, this.height, this.geometry, this.shots, this.error);
 }
 
-Future<AnalysisOutput> analyzeInBackground(Uint8List bytes, TargetSpec spec, int expected) {
-  return Isolate.run(() {
+Future<AnalysisOutput> analyzeInBackground(Uint8List bytes, TargetSpec spec, int expected) async {
+  if (kIsWeb) {
+    // hagyjunk időt a folyamatjelző megjelenésére
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return _run(bytes, spec, expected);
+  }
+  return Isolate.run(() => _run(bytes, spec, expected));
+}
+
+AnalysisOutput _run(Uint8List bytes, TargetSpec spec, int expected) {
+  {
     final (rgb, _) = decodeForEngine(bytes);
     final img = im.Image.fromBytes(width: rgb.w, height: rgb.h, bytes: rgb.d.buffer, numChannels: 3);
     final jpeg = Uint8List.fromList(im.encodeJpg(img, quality: 90));
@@ -39,5 +51,5 @@ Future<AnalysisOutput> analyzeInBackground(Uint8List bytes, TargetSpec spec, int
     } on CalibrationException catch (e) {
       return AnalysisOutput(jpeg, rgb.w, rgb.h, null, const [], e.message);
     }
-  });
+  }
 }

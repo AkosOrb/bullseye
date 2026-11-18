@@ -61,6 +61,7 @@ class SheetPainter extends CustomPainter {
     }
     if (!showLabels) return;
     final placed = <Rect>[];
+    final labels = <(Rect, Offset, Color, TextPainter, double, double)>[];
     final fontSize = 12.5 * labelScale;
     for (final v in views) {
       final c = Offset(v.shot.x * s, v.shot.y * s);
@@ -118,22 +119,27 @@ class SheetPainter extends CustomPainter {
       }
       best ??= Rect.fromLTWH(c.dx + r, c.dy - bh / 2, bw, bh);
       placed.add(best);
-      // vezetővonal, ha a címke messzebb került
-      final nearest = Offset(best.center.dx.clamp(best.left, best.right), best.center.dy);
+      labels.add((best, c, col, tp, padX, padY));
+    }
+    // Előbb a vezetővonalak, utána a címkék, hogy vonal ne takarjon szöveget.
+    for (final (box, c, col, _, _, _) in labels) {
+      final nearest = Offset(box.center.dx.clamp(box.left, box.right), box.center.dy);
       if ((nearest - c).distance > r + 8 * labelScale) {
-        final dir = (best.center - c);
+        final dir = (box.center - c);
         final start = c + dir / dir.distance * r;
-        canvas.drawLine(start, _closestPoint(best, start), Paint()
+        canvas.drawLine(start, _closestPoint(box, start), Paint()
           ..color = col
           ..strokeWidth = 1.2 * labelScale);
       }
-      final rr = RRect.fromRectAndRadius(best, Radius.circular(4 * labelScale));
+    }
+    for (final (box, _, col, tp, padX, padY) in labels) {
+      final rr = RRect.fromRectAndRadius(box, Radius.circular(4 * labelScale));
       canvas.drawRRect(rr, Paint()..color = Colors.white.withValues(alpha: 0.94));
       canvas.drawRRect(rr, Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5 * labelScale
         ..color = col);
-      tp.paint(canvas, Offset(best.left + padX, best.top + padY));
+      tp.paint(canvas, Offset(box.left + padX, box.top + padY));
     }
   }
 

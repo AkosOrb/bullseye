@@ -48,7 +48,7 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.6;
     final dir = Directory.systemTemp.createTempSync('bullseye_shots');
-    store = (await tester.runAsync(() => AppStore.open(dir: dir)))!;
+    store = (await tester.runAsync(() => AppStore.open(dir: dir.path)))!;
     await tester.runAsync(() async {
       final session = store.newSession();
       for (final name in ['1_eredeti.png', '2_eredeti.png', '3_eredeti.png']) {
@@ -121,7 +121,7 @@ void main() {
   testWidgets('üres állapot sötét módban', (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.6;
-    store = (await tester.runAsync(() => AppStore.open(dir: Directory.systemTemp.createTempSync('b'))))!;
+    store = (await tester.runAsync(() => AppStore.open(dir: Directory.systemTemp.createTempSync('b').path)))!;
     await tester.pumpWidget(app(const HomeShell(), b: Brightness.dark));
     await settle(tester);
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('screens/07_empty_dark.png'));

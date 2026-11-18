@@ -1,24 +1,24 @@
 // Export: jelölt kép (PNG) és PDF, megosztás.
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:material_ui/material_ui.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import '../data/models.dart';
 import '../data/stats.dart';
+import '../data/store.dart';
+import 'download.dart';
 import '../ui/sheet_painter.dart';
 import '../ui/widgets.dart';
 
 /// A lap fotója a jelölésekkel és a fejléccel, PNG-ként.
-Future<Uint8List> renderSheetPng(Sheet sheet) async {
-  final bytes = await File(sheet.imagePath).readAsBytes();
+Future<Uint8List> renderSheetPng(AppStore store, Sheet sheet) async {
+  final bytes = await store.imageBytes(sheet);
+  if (bytes == null) throw StateError('A lap fotója nem található.');
   final codec = await ui.instantiateImageCodec(bytes);
   final frame = await codec.getNextFrame();
   final img = frame.image;
@@ -106,45 +106,51 @@ pw.Widget _sheetBlock(Sheet sheet, Uint8List png, String title) {
   ]);
 }
 
-Future<void> _share(BuildContext context, File f, String text) async {
+Future<void> _share(BuildContext context, Uint8List bytes, String name, String mime, String text) async {
   final box = context.findRenderObject() as RenderBox?;
-  await SharePlus.instance.share(ShareParams(
-    files: [XFile(f.path)],
-    text: text,
-    sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
-  ));
-}
-
-Future<File> _tmpFile(String name) async {
-  final dir = await getTemporaryDirectory();
-  return File(p.join(dir.path, name));
+  try {
+    final r = await SharePlus.instance.share(ShareParams(
+      files: [XFile.fromData(bytes, mimeType: mime, name: name)],
+      fileNameOverrides: [name],
+      text: text,
+      sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+    ));
+    if (r.status != ShareResultStatus.unavailable) return;
+  } catch (_) {
+    if (!canDownload) rethrow;
+  }
+  // Böngészőben, ha a megosztás nem érhető el: letöltés.
+  if (canDownload) downloadBytes(bytes, name, mime);
 }
 
 String _stamp(DateTime d) =>
     '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}_${d.hour.toString().padLeft(2, '0')}${d.minute.toString().padLeft(2, '0')}';
 
 Future<void> shareSheetImage(BuildContext context, Sheet sheet) async {
-  final png = await renderSheetPng(sheet);
-  final f = await _tmpFile('lolap_${_stamp(sheet.createdAt)}.png');
-  await f.writeAsBytes(png);
-  if (context.mounted) await _share(context, f, 'Lőlap: ${sheet.total} pont');
+  final png = await renderSheetPng(StoreScope.of(context), sheet);
+  if (context.mounted) {
+    await _share(context, png, 'lolap_${_stamp(sheet.createdAt)}.png', 'image/png', 'Lőlap: ${sheet.total} pont');
+  }
 }
 
 Future<void> shareSheetPdf(BuildContext context, Sheet sheet) async {
+  final store = StoreScope.of(context);
   final theme = await _pdfTheme();
-  final png = await renderSheetPng(sheet);
+  final png = await renderSheetPng(store, sheet);
   final doc = pw.Document(theme: theme, title: 'Lőlap ${fmtShortDate(sheet.createdAt)}');
   doc.addPage(pw.Page(
     pageFormat: PdfPageFormat.a4.landscape,
     margin: const pw.EdgeInsets.all(24),
     build: (_) => _sheetBlock(sheet, png, 'Lőlap – ${fmtDate(sheet.createdAt)} ${fmtTime(sheet.createdAt)}'),
   ));
-  final f = await _tmpFile('lolap_${_stamp(sheet.createdAt)}.pdf');
-  await f.writeAsBytes(await doc.save());
-  if (context.mounted) await _share(context, f, 'Lőlap: ${sheet.total} pont');
+  final pdf = await doc.save();
+  if (context.mounted) {
+    await _share(context, pdf, 'lolap_${_stamp(sheet.createdAt)}.pdf', 'application/pdf', 'Lőlap: ${sheet.total} pont');
+  }
 }
 
 Future<void> shareSessionPdf(BuildContext context, Session session) async {
+  final store = StoreScope.of(context);
   final theme = await _pdfTheme();
   final sheets = [...session.sheets]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
   final doc = pw.Document(theme: theme, title: 'Edzés ${fmtShortDate(session.date)}');
@@ -173,14 +179,15 @@ Future<void> shareSessionPdf(BuildContext context, Session session) async {
     ]),
   ));
   for (var i = 0; i < sheets.length; i++) {
-    final png = await renderSheetPng(sheets[i]);
+    final png = await renderSheetPng(store, sheets[i]);
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4.landscape,
       margin: const pw.EdgeInsets.all(24),
       build: (_) => _sheetBlock(sheets[i], png, '${i + 1}. lap – ${fmtTime(sheets[i].createdAt)}'),
     ));
   }
-  final f = await _tmpFile('edzes_${_stamp(session.date)}.pdf');
-  await f.writeAsBytes(await doc.save());
-  if (context.mounted) await _share(context, f, 'Edzés: ${session.total} pont');
+  final pdf = await doc.save();
+  if (context.mounted) {
+    await _share(context, pdf, 'edzes_${_stamp(session.date)}.pdf', 'application/pdf', 'Edzés: ${session.total} pont');
+  }
 }

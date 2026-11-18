@@ -1,5 +1,4 @@
 // Egy lap eredménye: jelölt fotó, fejléc, kézi javítás, táblázat.
-import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 
@@ -266,7 +265,7 @@ class _SheetScreenState extends State<SheetScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.file(File(sheet.imagePath), fit: BoxFit.fill, gaplessPlayback: true),
+                      SheetImage(sheet: sheet, fit: BoxFit.fill),
                       CustomPaint(
                         painter: SheetPainter(
                           views: views,

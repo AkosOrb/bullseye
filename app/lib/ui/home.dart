@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 
@@ -24,7 +23,7 @@ class _HomeShellState extends State<HomeShell> {
     final pages = [const SessionsPage(), const StatsScreen(), const SettingsScreen()];
     return Scaffold(
       body: SafeArea(bottom: false, child: IndexedStack(index: _tab, children: pages)),
-      floatingActionButton: _tab == 0
+      floatingActionButton: _tab == 0 && StoreScope.of(context).sessions.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: () => startNewSheet(context),
               icon: const Icon(Icons.photo_camera_outlined),
@@ -155,8 +154,7 @@ class _Thumbs extends StatelessWidget {
         color: t.colorScheme.surfaceContainerHighest,
         child: first == null
             ? Icon(Icons.image_outlined, color: t.colorScheme.onSurfaceVariant)
-            : Image.file(File(first.imagePath), fit: BoxFit.cover, cacheWidth: 168,
-                errorBuilder: (_, _, _) => Icon(Icons.broken_image_outlined, color: t.colorScheme.onSurfaceVariant)),
+            : SheetImage(sheet: first, cacheWidth: 168),
       ),
     );
   }

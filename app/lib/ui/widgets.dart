@@ -1,6 +1,11 @@
 // Közös felületi elemek és formázók.
+import 'dart:typed_data';
+
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../data/models.dart';
+import '../data/store.dart';
 
 String fmtDate(DateTime d) => DateFormat('y. MMMM d., EEEE', 'hu').format(d);
 String fmtShortDate(DateTime d) => DateFormat('y. MM. dd.', 'hu').format(d);
@@ -157,5 +162,55 @@ class StatGrid extends StatelessWidget {
       ));
     }
     return Column(mainAxisSize: MainAxisSize.min, children: rows);
+  }
+}
+
+
+/// A lap fotója a tárolóból (telefonon fájl, böngészőben IndexedDB).
+class SheetImage extends StatefulWidget {
+  const SheetImage({super.key, required this.sheet, this.fit = BoxFit.cover, this.cacheWidth, this.placeholder});
+  final Sheet sheet;
+  final BoxFit fit;
+  final int? cacheWidth;
+  final Widget? placeholder;
+
+  @override
+  State<SheetImage> createState() => _SheetImageState();
+}
+
+class _SheetImageState extends State<SheetImage> {
+  Future<Uint8List?>? _future;
+  String? _key;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(SheetImage old) {
+    super.didUpdateWidget(old);
+    _load();
+  }
+
+  void _load() {
+    if (_key == widget.sheet.imagePath && _future != null) return;
+    _key = widget.sheet.imagePath;
+    _future = StoreScope.of(context).imageBytes(widget.sheet);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ph = widget.placeholder ?? const SizedBox.shrink();
+    return FutureBuilder<Uint8List?>(
+      future: _future,
+      builder: (context, snap) {
+        final b = snap.data;
+        if (b == null) return ph;
+        return Image.memory(b,
+            fit: widget.fit, cacheWidth: widget.cacheWidth, gaplessPlayback: true, errorBuilder: (_, _, _) => ph);
+      },
+    );
   }
 }

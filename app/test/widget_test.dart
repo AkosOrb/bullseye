@@ -17,7 +17,7 @@ void main() {
 
   testWidgets('üres kezdőképernyő: cím, magyarázat és fotózás gomb', (tester) async {
     final dir = Directory.systemTemp.createTempSync('bullseye_test');
-    final store = await tester.runAsync(() => AppStore.open(dir: dir));
+    final store = await tester.runAsync(() => AppStore.open(dir: dir.path));
     await tester.pumpWidget(BullseyeApp(store: store!));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Még nincs kiértékelt lap'), findsOneWidget);
