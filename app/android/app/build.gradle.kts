@@ -5,6 +5,11 @@ plugins {
 }
 
 android {
+    lint {
+        // a kamera-plugin forrásán összeomlik a lint; az APK-hoz nem szükséges
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
     namespace = "hu.bullseye.bullseye"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
