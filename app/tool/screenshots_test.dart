@@ -203,6 +203,25 @@ void main() {
     expect(sheet.shots.every((x) => x.radius == r), isTrue);
   });
 
+  testWidgets('koppintásra nagyít, újabb koppintásra visszaáll', (tester) async {
+    await setup(tester);
+    final sheet = store.sessions.first.sheets.first;
+    await tester.pumpWidget(app(SheetScreen(sheet: sheet)));
+    await settle(tester);
+    final box = tester.getRect(find.byType(InteractiveViewer));
+    final fit = (box.width / sheet.imageW) < (box.height / sheet.imageH) ? box.width / sheet.imageW : box.height / sheet.imageH;
+    final ox = box.left + (box.width - sheet.imageW * fit) / 2, oy = box.top + (box.height - sheet.imageH * fit) / 2;
+    final iv = tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    await tester.tapAt(Offset(ox + 8, oy + 8));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(iv.transformationController!.value.getMaxScaleOnAxis(), closeTo(3, 0.01));
+    await tester.tapAt(Offset(ox + 8, oy + 8));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(iv.transformationController!.value.getMaxScaleOnAxis(), closeTo(1, 0.01));
+  });
+
   testWidgets('edzés és statisztika', (tester) async {
     await setup(tester);
     await tester.pumpWidget(app(SessionScreen(session: store.sessions.first)));

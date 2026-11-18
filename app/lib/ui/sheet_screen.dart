@@ -19,7 +19,7 @@ class SheetScreen extends StatefulWidget {
   State<SheetScreen> createState() => _SheetScreenState();
 }
 
-class _SheetScreenState extends State<SheetScreen> {
+class _SheetScreenState extends State<SheetScreen> with SingleTickerProviderStateMixin {
   final _tc = TransformationController();
   String? _selected;
   bool _addMode = false;
@@ -28,6 +28,8 @@ class _SheetScreenState extends State<SheetScreen> {
   bool _ringEdit = false; // gyűrűk kézi igazítása
   Offset? _ringDragLast;
   int _pointers = 0;
+  late final AnimationController _zoomAnim;
+  Matrix4Tween? _zoomTween;
   String? _resizedId; // ennek a lövésnek a körét állította át kézzel (még nem kérdeztük)
   bool _askingResize = false;
   bool _dragging = false;
@@ -39,10 +41,16 @@ class _SheetScreenState extends State<SheetScreen> {
   void initState() {
     super.initState();
     _tc.addListener(() => setState(() {}));
+    _zoomAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 220))
+      ..addListener(() {
+        final t = _zoomTween;
+        if (t != null) _tc.value = t.evaluate(CurvedAnimation(parent: _zoomAnim, curve: Curves.easeOutCubic));
+      });
   }
 
   @override
   void dispose() {
+    _zoomAnim.dispose();
     _tc.dispose();
     super.dispose();
   }
@@ -354,6 +362,11 @@ class _SheetScreenState extends State<SheetScreen> {
                       return;
                     }
                     final hit = _hitShot(p, photoPerScreen);
+                    // Üres helyre koppintás (ha nincs kijelölés): ránagyít oda, ill. visszaáll.
+                    if (hit == null && _selected == null) {
+                      _toggleZoom(p * fit);
+                      return;
+                    }
                     setState(() => _selected = hit?.id);
                   },
                   child: Stack(
@@ -453,7 +466,7 @@ class _SheetScreenState extends State<SheetScreen> {
                                 ? 'A narancs vonalak a gyűrűk pontozási szélét mutatják. Ha elcsúsztak, igazítsd őket.'
                                 : checks.isNotEmpty
                                 ? 'A sárgával jelölt lövéseket nézőkével ellenőrizd. Koppints egy lövésre a javításhoz.'
-                                : 'Koppints egy lövésre a javításhoz. Kijelölés után húzással mozgatható.',
+                                : 'Koppints egy lövésre a javításhoz, vagy üres helyre a nagyításhoz.',
                         style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
                       ),
                     ),
@@ -526,6 +539,17 @@ class _SheetScreenState extends State<SheetScreen> {
           content: Text(d == 0
               ? 'Minden lövés köre igazítva, az összpontszám nem változott.'
               : 'Minden lövés köre igazítva, az összpontszám ${d > 0 ? '+' : ''}$d ponttal változott.')));
+  }
+
+  void _toggleZoom(Offset childPos) {
+    const s = 3.0;
+    final target = _viewScale > 1.05
+        ? Matrix4.identity()
+        : (Matrix4.identity()
+          ..translateByDouble(-childPos.dx * (s - 1), -childPos.dy * (s - 1), 0, 1)
+          ..scaleByDouble(s, s, 1, 1));
+    _zoomTween = Matrix4Tween(begin: _tc.value.clone(), end: target);
+    _zoomAnim.forward(from: 0);
   }
 
   /// A gyűrűk eltolása a fotón mért (dx, dy) képponttal; a pontok azonnal újraszámolódnak.
