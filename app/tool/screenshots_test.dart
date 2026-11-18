@@ -222,6 +222,17 @@ void main() {
     expect(iv.transformationController!.value.getMaxScaleOnAxis(), closeTo(1, 0.01));
   });
 
+  testWidgets('találati kép koppintásra nagyítható', (tester) async {
+    await setup(tester);
+    await tester.pumpWidget(app(SessionScreen(session: store.sessions.first)));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Találati kép nagyítása').first);
+    await settle(tester);
+    expect(find.text('Találati kép'), findsWidgets);
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('screens/08_target_zoom.png'));
+  });
+
   testWidgets('edzés és statisztika', (tester) async {
     await setup(tester);
     await tester.pumpWidget(app(SessionScreen(session: store.sessions.first)));

@@ -239,18 +239,127 @@ class _TotalsChart extends StatelessWidget {
 }
 
 /// A lőlap sematikus rajza a lövések helyével és a csoport közepével.
+/// Koppintásra teljes képernyőn, nagyíthatóan nyílik meg.
 class TargetDiagram extends StatelessWidget {
-  const TargetDiagram({super.key, required this.points, required this.group, required this.spec});
+  const TargetDiagram({super.key, required this.points, required this.group, required this.spec, this.zoomable = true});
   final List<(double, double)> points; // mm, jobbra/felfelé +
   final GroupStats? group;
   final TargetSpec spec;
+  final bool zoomable;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    return Semantics(
+    final paint = Semantics(
       label: 'Találati kép: ${points.length} lövés. ${group?.describe() ?? ''}',
+      button: zoomable,
       child: CustomPaint(painter: _TargetPainter(points, group, spec, t.colorScheme)),
+    );
+    if (!zoomable) return paint;
+    return Tooltip(
+      message: 'Találati kép nagyítása',
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _TargetZoomPage(points: points, group: group, spec: spec))),
+        child: Stack(children: [
+          Positioned.fill(child: paint),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(color: kInk, shape: BoxShape.circle),
+              child: const Icon(Icons.zoom_in, size: 16, color: kCream),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Teljes képernyős, nagyítható találati kép (csippentés, dupla koppintás).
+class _TargetZoomPage extends StatefulWidget {
+  const _TargetZoomPage({required this.points, required this.group, required this.spec});
+  final List<(double, double)> points;
+  final GroupStats? group;
+  final TargetSpec spec;
+  @override
+  State<_TargetZoomPage> createState() => _TargetZoomPageState();
+}
+
+class _TargetZoomPageState extends State<_TargetZoomPage> with SingleTickerProviderStateMixin {
+  final _tc = TransformationController();
+  late final AnimationController _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 220))
+    ..addListener(() {
+      final tw = _tween;
+      if (tw != null) _tc.value = tw.evaluate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
+    });
+  Matrix4Tween? _tween;
+  Offset _tapPos = Offset.zero;
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    _tc.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    const s = 3.0;
+    final zoomed = _tc.value.getMaxScaleOnAxis() > 1.05;
+    final p = _tc.toScene(_tapPos);
+    final target = zoomed
+        ? Matrix4.identity()
+        : (Matrix4.identity()
+          ..translateByDouble(-p.dx * (s - 1), -p.dy * (s - 1), 0, 1)
+          ..scaleByDouble(s, s, 1, 1));
+    _tween = Matrix4Tween(begin: _tc.value.clone(), end: target);
+    _anim.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final g = widget.group;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Találati kép')),
+      body: Column(children: [
+        Expanded(
+          child: GestureDetector(
+            onDoubleTapDown: (d) => _tapPos = d.localPosition,
+            onDoubleTap: _toggle,
+            child: InteractiveViewer(
+              transformationController: _tc,
+              minScale: 1,
+              maxScale: 12,
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TargetDiagram(points: widget.points, group: g, spec: widget.spec, zoomable: false),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${widget.points.length} lövés${g != null && g.n >= 3 ? ' · ${g.describe()}' : ''}',
+                  style: t.textTheme.bodyMedium),
+              const SizedBox(height: 4),
+              Text('Csippentéssel vagy dupla koppintással nagyíthatsz. A sárga kör a szórás, a kereszt a csoport közepe.',
+                  style: t.textTheme.bodySmall?.copyWith(color: kTaupe)),
+            ]),
+          ),
+        ),
+      ]),
     );
   }
 }
