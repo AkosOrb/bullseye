@@ -34,6 +34,8 @@ class TargetGeometry {
 
   TargetGeometry(this.spec, this.toCanon, this.ringFits, this.spacing, this.pxPerSpacingOrig);
 
+  TargetGeometry withSpec(TargetSpec s) => TargetGeometry(s, toCanon, ringFits, spacing, pxPerSpacingOrig);
+
   double get mmPerCanonPx => spec.ringSpacingMm / spacing;
 
   /// Lövedéksugár az eredeti képen (rajzoláshoz).
@@ -110,7 +112,8 @@ class DetectedShot {
   final ShotScore score;
   final bool uncertain;
   final String note;
-  DetectedShot(this.x, this.y, this.score, this.uncertain, this.note);
+  final String reason; // felismerési megjegyzés (pl. szétbontott lyuk)
+  DetectedShot(this.x, this.y, this.score, this.uncertain, this.note, this.reason);
   bool get flagged => uncertain || score.borderline;
 }
 
@@ -144,7 +147,7 @@ AnalysisResult analyze(Rgb img, TargetSpec spec, {int? expected = 15}) {
     final sc = geo.scoreCanon(h.x, h.y);
     final (ox, oy) = cal.toOrig(h.x, h.y);
     final note = [if (h.reason.isNotEmpty) h.reason, if (sc.note.isNotEmpty) sc.note].join('; ');
-    shots.add(DetectedShot(ox, oy, sc, h.uncertain, note));
+    shots.add(DetectedShot(ox, oy, sc, h.uncertain, note, h.reason));
   }
   // sorszámozás olvasási sorrendben (fentről le, balról jobbra)
   final row = cal.pxPerSpacingOrig * 0.8;

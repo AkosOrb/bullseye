@@ -11,6 +11,56 @@ Fotó alapján felismeri a találatokat egy lőlapon, kiszámolja a pontszámot,
 | `engine/` | Felismerő motor Pythonban (OpenCV). Ezen fejlesztjük és mérjük az algoritmust. |
 | `engine/targets/` | Lőlap-formátumok leírása JSON-ban (új formátum = új fájl). |
 | `testdata/` | Tesztfotók és a kézi (nézőkés) kiértékelés (`ground_truth.json`). |
+| `app/` | A mobilapp (Flutter, Android és iOS). A motor Dartban, a telefonon fut, internet nélkül. |
+| `app/tool/screens/` | Képernyőképek az appról (tesztből generálva). |
+
+## Az app kipróbálása
+
+### Android – a legegyszerűbb út (nem kell semmit telepíteni a gépre)
+
+1. Minden feltöltés után a GitHub automatikusan elkészíti a telepítőt: a repó
+   **Actions** fülén nyisd meg a legfrissebb zöld „Android APK” futást, és lent az
+   **Artifacts** résznél töltsd le a `lolap-kiertekelo-apk` csomagot.
+2. A zip-ből kibontott `app-release.apk`-t másold a telefonra, és nyisd meg.
+   A telefon rákérdez, hogy engedélyezed-e az ismeretlen forrásból való telepítést: engedélyezd.
+
+### Android vagy iOS – saját gépről
+
+1. Telepítsd a [Flutter SDK-t](https://docs.flutter.dev/get-started/install) és az Android Studiót.
+2. Csatlakoztasd a telefont USB-vel (Androidon a fejlesztői mód és az USB-hibakeresés kell).
+3. ```bash
+   cd app
+   flutter pub get
+   flutter run --release
+   ```
+
+**iOS-hez Mac kell** (Xcode-dal), vagy egy felhős építőszolgáltatás, például a
+[Codemagic](https://codemagic.io), ami Mac nélkül is elkészíti és a TestFlightra tölti az appot.
+Mindkettőhöz Apple fejlesztői fiók szükséges.
+
+### Az app használata
+
+1. **Lap fotózása**: a lőlapot egyenesen, árnyékmentesen, a keretbe igazítva fotózd le
+   (vagy válassz képet a galériából).
+2. Az app bejelöli a lövéseket („sorszám: pont”), fent látod az összpontszámot.
+   A **sárga, szaggatott karikás** lövéseket érdemes nézőkével ellenőrizni.
+3. Koppints egy lövésre: a pontszám a ± gombokkal felülírható, a jelölés húzással
+   áthelyezhető, a kuka gombbal törölhető. Üres helyre koppintva új lövést adsz hozzá.
+   Ha a talált lövések száma eltér a beállítottól, az app figyelmeztet.
+4. Egy nap lapjai egy edzésbe kerülnek. Az edzés és a **Statisztika** oldal mutatja az
+   átlagot, a fejlődést és a találati kép eltolódását; PDF-ben vagy képként megosztható.
+5. A **Beállítások**ban állítható a lövésszám, a vonalérintés szabálya és a határeset-tűréshatár.
+
+### Fejlesztőknek
+
+```bash
+cd app
+flutter analyze
+flutter test                                        # motor + felület tesztek
+flutter test tool/screenshots_test.dart --update-goldens   # képernyőképek újragenerálása
+```
+
+A PDF-exporthoz a Noto Sans betűtípus van beépítve (SIL Open Font License 1.1).
 
 ## A motor kipróbálása
 
