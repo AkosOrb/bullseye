@@ -103,6 +103,21 @@ class AppStore extends ChangeNotifier {
     return null;
   }
 
+  /// Az eddig megadott lövők nevei, a legutóbb használt elöl.
+  List<String> knownShooters() {
+    final last = <String, DateTime>{};
+    for (final s in sessions) {
+      for (final sh in s.sheets) {
+        final n = sh.shooter.trim();
+        if (n.isEmpty) continue;
+        final prev = last[n];
+        if (prev == null || sh.createdAt.isAfter(prev)) last[n] = sh.createdAt;
+      }
+    }
+    final names = last.keys.toList()..sort((a, b) => last[b]!.compareTo(last[a]!));
+    return names;
+  }
+
   Future<Sheet> addSheet(Session session, Uint8List jpeg, int w, int h, Map<String, dynamic>? geometry,
       List<Map<String, dynamic>> shots, int expected) async {
     final id = newId();

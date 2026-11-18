@@ -78,3 +78,40 @@ List<(double, double)> shotOffsets(Sheet sheet) {
       if (v.computed != null) (v.computed!.dxMm, v.computed!.dyMm)
   ];
 }
+
+/// Egy lövő összesített eredménye egy edzésen/versenyen belül.
+class ShooterRank {
+  final String name;
+  final int sheets;
+  final int total;
+  final int shots;
+  final int best;
+  const ShooterRank(this.name, this.sheets, this.total, this.shots, this.best);
+  double get averagePerSheet => sheets == 0 ? 0 : total / sheets;
+}
+
+/// Rangsor lövőnként (összpontszám szerint, egyenlőségnél a legjobb lap dönt).
+/// A lövő nélküli lapok kimaradnak.
+List<ShooterRank> shooterRanking(List<Sheet> sheets) {
+  final by = <String, List<Sheet>>{};
+  for (final s in sheets) {
+    final n = s.shooter.trim();
+    if (n.isEmpty) continue;
+    by.putIfAbsent(n, () => []).add(s);
+  }
+  final out = [
+    for (final e in by.entries)
+      ShooterRank(
+        e.key,
+        e.value.length,
+        e.value.fold(0, (a, s) => a + s.total),
+        e.value.fold(0, (a, s) => a + s.shots.length),
+        e.value.map((s) => s.total).reduce((a, b) => a > b ? a : b),
+      )
+  ];
+  out.sort((a, b) => b.total != a.total ? b.total.compareTo(a.total) : b.best.compareTo(a.best));
+  return out;
+}
+
+/// A lap megjelenített címe: név, ennek hiányában a sorszám.
+String sheetTitle(Sheet s, int index) => s.name.trim().isNotEmpty ? s.name.trim() : '$index. lap';

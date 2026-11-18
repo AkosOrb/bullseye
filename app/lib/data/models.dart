@@ -78,6 +78,9 @@ class Sheet {
   TargetGeometry? geometry;
   String targetId;
   List<Shot> shots;
+  /// A lap neve (pl. „1. sorozat”) és a lövő neve versenyhez; üres = nincs megadva.
+  String name;
+  String shooter;
 
   Sheet({
     required this.id,
@@ -89,6 +92,8 @@ class Sheet {
     required this.geometry,
     required this.targetId,
     required this.shots,
+    this.name = '',
+    this.shooter = '',
   });
 
   TargetSpec get spec => geometry?.spec ?? TargetSpec.byId(targetId);
@@ -120,6 +125,8 @@ class Sheet {
         'targetId': targetId,
         if (geometry != null) 'geometry': geometry!.toJson(),
         'shots': [for (final s in shots) s.toJson()],
+        if (name.isNotEmpty) 'name': name,
+        if (shooter.isNotEmpty) 'shooter': shooter,
       };
 
   static Sheet fromJson(Map<String, dynamic> j, {TargetSpec Function(String id)? specFor}) {
@@ -133,6 +140,8 @@ class Sheet {
       imageH: j['imageH'] as int,
       expectedShots: j['expectedShots'] as int? ?? 15,
       targetId: targetId,
+      name: j['name'] as String? ?? '',
+      shooter: j['shooter'] as String? ?? '',
       geometry: j['geometry'] == null
           ? null
           : TargetGeometry.fromJson((j['geometry'] as Map).cast<String, dynamic>(), spec: spec),

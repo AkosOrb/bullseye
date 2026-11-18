@@ -8,6 +8,7 @@ import '../services/export.dart';
 import 'new_sheet.dart';
 import 'sheet_screen.dart';
 import 'stats_screen.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 class SessionScreen extends StatelessWidget {
@@ -99,6 +100,7 @@ class SessionScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+                ..._ranking(context, sheets),
                 const SectionHeader('Lapok'),
                 Card(
                   clipBehavior: Clip.antiAlias,
@@ -114,6 +116,44 @@ class SessionScreen extends StatelessWidget {
               ],
             ),
     );
+  }
+
+  /// Rangsor lövőnként, ha legalább két lövőhöz van lap rendelve.
+  List<Widget> _ranking(BuildContext context, List<Sheet> sheets) {
+    final rank = shooterRanking(sheets);
+    if (rank.length < 2) return const [];
+    final t = Theme.of(context);
+    final unassigned = sheets.where((s) => s.shooter.trim().isEmpty).length;
+    return [
+      const SectionHeader('Rangsor'),
+      Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: [
+          for (var i = 0; i < rank.length; i++) ...[
+            if (i > 0) const Divider(),
+            ListTile(
+              leading: Panel(
+                color: i == 0 ? kOrange : (i == 1 ? kYellow : (i == 2 ? kCream : kTaupe)),
+                radius: 12,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Text('${i + 1}.', style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              title: Text(rank[i].name),
+              subtitle: Text('${rank[i].sheets} lap · átlag ${fmtNum(rank[i].averagePerSheet)} · legjobb ${rank[i].best}'),
+              trailing: Text('${rank[i].total}',
+                  style: t.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()])),
+            ),
+          ],
+          if (unassigned > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Text('$unassigned lap nincs lövőhöz rendelve, ezek nem számítanak a rangsorba.',
+                  style: t.textTheme.bodySmall?.copyWith(color: kTaupe)),
+            ),
+        ]),
+      ),
+    ];
   }
 
   Future<void> _rename(BuildContext context, AppStore store) async {
@@ -173,6 +213,7 @@ class _SheetRow extends StatelessWidget {
     final checks = views.where((v) => v.needsCheck).length;
     final mismatch = sheet.shots.length != sheet.expectedShots;
     final sub = [
+      if (sheet.shooter.isNotEmpty) sheet.shooter,
       '${fmtTime(sheet.createdAt)} · ${sheet.shots.length} lövés',
       if (mismatch) '${sheet.expectedShots} helyett',
       if (sheet.irregular) 'nem szabályos',
@@ -184,7 +225,7 @@ class _SheetRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         child: SizedBox(width: 48, height: 48, child: SheetImage(sheet: sheet, cacheWidth: 144)),
       ),
-      title: Text('$index. lap'),
+      title: Text(sheetTitle(sheet, index)),
       subtitle: Text(sub),
       trailing: Text('${sheet.total}',
           style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()])),

@@ -233,6 +233,31 @@ void main() {
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('screens/08_target_zoom.png'));
   });
 
+  testWidgets('lövők és rangsor', (tester) async {
+    await setup(tester);
+    final sheets = store.sessions.first.sheets;
+    await tester.pumpWidget(app(SheetScreen(sheet: sheets[0])));
+    await settle(tester);
+    await tester.tap(find.text('lövő'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.enterText(find.widgetWithText(TextField, 'Lövő'), 'Anna');
+    await tester.enterText(find.widgetWithText(TextField, 'Lap neve'), 'Döntő');
+    await tester.tap(find.text('Mentés'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(sheets[0].shooter, 'Anna');
+    expect(sheets[0].name, 'Döntő');
+    sheets[1].shooter = 'Bence';
+    sheets[2].shooter = 'Anna';
+    await tester.pumpWidget(app(SessionScreen(session: store.sessions.first)));
+    await settle(tester);
+    final list = find.descendant(of: find.byType(ListView).first, matching: find.byType(Scrollable)).first;
+    await tester.scrollUntilVisible(find.text('rangsor'), 300, scrollable: list);
+    await tester.drag(list, const Offset(0, -150));
+    await settle(tester);
+    expect(find.text('rangsor'), findsOneWidget);
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('screens/09_ranking.png'));
+  });
+
   testWidgets('edzés és statisztika', (tester) async {
     await setup(tester);
     await tester.pumpWidget(app(SessionScreen(session: store.sessions.first)));

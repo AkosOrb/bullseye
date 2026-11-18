@@ -71,7 +71,8 @@ pw.Widget _sheetBlock(Sheet sheet, Uint8List png, String title) {
   final sorted = [...views]..sort((a, b) => b.score.compareTo(a.score));
   final checks = views.where((v) => v.needsCheck).toList();
   return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-    pw.Text(title, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+    pw.Text(sheet.shooter.isNotEmpty ? '$title – ${sheet.shooter}' : title,
+        style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
     pw.SizedBox(height: 4),
     pw.Text('${views.length} lövés (megadott: ${sheet.expectedShots}) – összesen $total pont'
         '${sheet.irregular ? ' – nem szabályos (szabályosan ${sheet.regulationShots} lövés)' : ''}'),
@@ -142,7 +143,7 @@ Future<void> shareSheetPdf(BuildContext context, Sheet sheet) async {
   doc.addPage(pw.Page(
     pageFormat: PdfPageFormat.a4.landscape,
     margin: const pw.EdgeInsets.all(24),
-    build: (_) => _sheetBlock(sheet, png, 'Lőlap – ${fmtDate(sheet.createdAt)} ${fmtTime(sheet.createdAt)}'),
+    build: (_) => _sheetBlock(sheet, png, '${sheet.name.isNotEmpty ? sheet.name : 'Lőlap'} – ${fmtDate(sheet.createdAt)} ${fmtTime(sheet.createdAt)}'),
   ));
   final pdf = await doc.save();
   if (context.mounted) {
@@ -157,6 +158,7 @@ Future<void> shareSessionPdf(BuildContext context, Session session) async {
   final doc = pw.Document(theme: theme, title: 'Edzés ${fmtShortDate(session.date)}');
   final title = session.title.isNotEmpty ? session.title : fmtDate(session.date);
   final group = groupStats([for (final s in sheets) ...shotOffsets(s)]);
+  final rank = shooterRanking(sheets);
   doc.addPage(pw.Page(
     pageFormat: PdfPageFormat.a4,
     margin: const pw.EdgeInsets.all(32),
@@ -166,15 +168,30 @@ Future<void> shareSessionPdf(BuildContext context, Session session) async {
       pw.Text('${sheets.length} lap, ${session.shotCount} lövés – összesen ${session.total} pont'),
       pw.Text('Átlag: ${fmtNum(session.averagePerSheet)} pont/lap, ${fmtNum(session.averagePerShot, 2)} pont/lövés'),
       if (group != null) pw.Text('Szórásminta: ${group.describe()} Átlagos szórás: ${fmtNum(group.spread, 0)} mm.'),
+      if (rank.length >= 2) ...[
+        pw.SizedBox(height: 16),
+        pw.Text('Rangsor', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 6),
+        pw.TableHelper.fromTextArray(
+          headers: ['Hely', 'Lövő', 'Lap', 'Legjobb', 'Összesen'],
+          data: [
+            for (var i = 0; i < rank.length; i++)
+              ['${i + 1}.', rank[i].name, '${rank[i].sheets}', '${rank[i].best}', '${rank[i].total}']
+          ],
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          cellAlignments: {2: pw.Alignment.centerRight, 3: pw.Alignment.centerRight, 4: pw.Alignment.centerRight},
+          border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+        ),
+      ],
       pw.SizedBox(height: 16),
       pw.TableHelper.fromTextArray(
-        headers: ['Lap', 'Idő', 'Lövés', 'Pont'],
+        headers: ['Lap', 'Lövő', 'Idő', 'Lövés', 'Pont'],
         data: [
           for (var i = 0; i < sheets.length; i++)
-            ['${i + 1}.', fmtTime(sheets[i].createdAt), '${sheets[i].shots.length}', '${sheets[i].total}']
+            [sheetTitle(sheets[i], i + 1), sheets[i].shooter, fmtTime(sheets[i].createdAt), '${sheets[i].shots.length}', '${sheets[i].total}']
         ],
         headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-        cellAlignments: {2: pw.Alignment.centerRight, 3: pw.Alignment.centerRight},
+        cellAlignments: {3: pw.Alignment.centerRight, 4: pw.Alignment.centerRight},
         border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
       ),
     ]),
@@ -184,7 +201,7 @@ Future<void> shareSessionPdf(BuildContext context, Session session) async {
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4.landscape,
       margin: const pw.EdgeInsets.all(24),
-      build: (_) => _sheetBlock(sheets[i], png, '${i + 1}. lap – ${fmtTime(sheets[i].createdAt)}'),
+      build: (_) => _sheetBlock(sheets[i], png, '${sheetTitle(sheets[i], i + 1)} – ${fmtTime(sheets[i].createdAt)}'),
     ));
   }
   final pdf = await doc.save();

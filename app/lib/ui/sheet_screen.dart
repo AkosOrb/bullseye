@@ -7,6 +7,7 @@ import '../data/stats.dart';
 import '../data/store.dart';
 import '../services/analysis.dart';
 import '../services/export.dart';
+import 'sheet_label.dart';
 import 'sheet_painter.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -144,7 +145,7 @@ class _SheetScreenState extends State<SheetScreen> with SingleTickerProviderStat
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text('${fmtShortDate(sheet.createdAt)} ${fmtTime(sheet.createdAt)}'),
+        title: Text(sheet.name.isNotEmpty ? sheet.name : '${fmtShortDate(sheet.createdAt)} ${fmtTime(sheet.createdAt)}'),
         actions: [
           if (sheet.geometry != null)
             IconButton(
@@ -171,6 +172,8 @@ class _SheetScreenState extends State<SheetScreen> with SingleTickerProviderStat
                   await shareSheetImage(context, sheet);
                 case 'shots':
                   await _editExpected();
+                case 'label':
+                  if (await editSheetLabel(context, sheet) && mounted) setState(() {});
                 case 'delete':
                   await _confirmDelete();
               }
@@ -178,6 +181,7 @@ class _SheetScreenState extends State<SheetScreen> with SingleTickerProviderStat
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'pdf', child: ListTile(leading: Icon(Icons.picture_as_pdf_outlined), title: Text('Megosztás PDF-ként'))),
               PopupMenuItem(value: 'png', child: ListTile(leading: Icon(Icons.image_outlined), title: Text('Megosztás képként'))),
+              PopupMenuItem(value: 'label', child: ListTile(leading: Icon(Icons.person_outline), title: Text('Név és lövő'))),
               PopupMenuItem(value: 'shots', child: ListTile(leading: Icon(Icons.tag), title: Text('Lövésszám módosítása'))),
               PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Lap törlése'))),
             ],
@@ -201,7 +205,21 @@ class _SheetScreenState extends State<SheetScreen> with SingleTickerProviderStat
                 const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text('pont', style: t.textTheme.titleLarge?.copyWith(color: kTaupe)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                    TextButton.icon(
+                      onPressed: () async {
+                        if (await editSheetLabel(context, sheet) && mounted) setState(() {});
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: sheet.shooter.isEmpty ? kTaupe : kCream,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.person_outline, size: 18),
+                      label: Text(sheet.shooter.isEmpty ? 'lövő' : sheet.shooter, overflow: TextOverflow.ellipsis),
+                    ),
+                    Text('pont', style: t.textTheme.titleLarge?.copyWith(color: kTaupe)),
+                  ]),
                 ),
                 const Spacer(),
                 Column(
