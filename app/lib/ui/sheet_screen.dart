@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../data/models.dart';
 import '../data/stats.dart';
 import '../data/store.dart';
+import '../services/analysis.dart';
 import '../services/export.dart';
 import 'sheet_painter.dart';
 import 'theme.dart';
@@ -22,6 +23,7 @@ class _SheetScreenState extends State<SheetScreen> {
   final _tc = TransformationController();
   String? _selected;
   bool _addMode = false;
+  bool _busy = false; // újrakeresés folyamatban
   bool _dragging = false;
   Offset? _dragStartShot;
 
@@ -89,8 +91,15 @@ class _SheetScreenState extends State<SheetScreen> {
       _selected = null;
     });
     _save();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    // A visszavonás-sáv magától eltűnik (különben az alsó panelt eltakarná,
+    // és nem lehetne folytatni a javítást).
+    final m = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+    m.showSnackBar(SnackBar(
       content: const Text('Lövés törölve'),
+      duration: const Duration(seconds: 4),
+      persist: false,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 76),
       action: SnackBarAction(
         label: 'Visszavonás',
         onPressed: () {
@@ -168,7 +177,11 @@ class _SheetScreenState extends State<SheetScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Panel(
-                      color: sheet.shots.length == sheet.expectedShots ? kTaupe : kCoral,
+                      color: diff != 0
+                          ? kCoral
+                          : sheet.irregular
+                              ? kYellow
+                              : kTaupe,
                       radius: 14,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       child: Text('${sheet.shots.length} / ${sheet.expectedShots} lövés',
@@ -196,20 +209,43 @@ class _SheetScreenState extends State<SheetScreen> {
                 text: 'A lapot nem sikerült kalibrálni, ezért a pontokat kézzel kell megadni.',
               ),
             )
-          else if (diff != 0)
+          else if (diff < 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: NoticeCard(
                 icon: Icons.warning_amber_outlined,
-                text: diff < 0
-                    ? '${sheet.shots.length} lövést találtam a megadott ${sheet.expectedShots} helyett. '
-                        'Koppints a hiányzó ${-diff} lövés helyére.'
-                    : '${sheet.shots.length} lövést találtam a megadott ${sheet.expectedShots} helyett. '
-                        'Jelöld ki és töröld a felesleges $diff lövést.',
-                actionLabel: diff < 0 ? 'Lövés hozzáadása' : null,
-                onAction: diff < 0 ? () => setState(() => _addMode = true) : null,
+                text: '${sheet.shots.length} lövést találtam a megadott ${sheet.expectedShots} helyett. '
+                    'Koppints a hiányzó ${-diff} lövés helyére.',
+                actionLabel: 'Lövés hozzáadása',
+                onAction: () => setState(() => _addMode = true),
+              ),
+            )
+          else if (diff > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: NoticeCard(
+                icon: Icons.warning_amber_outlined,
+                text: '${sheet.shots.length} lövést találtam a megadott ${sheet.expectedShots} helyett. '
+                    'Mindet beszámoltam; ha valamelyik nem lövés, jelöld ki és töröld.'
+                    '${sheet.irregular ? ' (Nem szabályos: egy lapon ${sheet.regulationShots} lövés a szabályos.)' : ''}',
+                actionLabel: 'Mind számít',
+                onAction: () {
+                  setState(() => sheet.expectedShots = sheet.shots.length);
+                  _save();
+                },
+              ),
+            )
+          else if (sheet.irregular)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: NoticeCard(
+                color: kYellow,
+                icon: Icons.info_outline,
+                text: 'Nem szabályos lap: ${sheet.shots.length} lövés (szabályosan ${sheet.regulationShots}). '
+                    'Az eredményt így is kiértékeltem.',
               ),
             ),
+          if (_busy) const LinearProgressIndicator(),
           Expanded(child: _buildViewer(views)),
           _buildBottomPanel(sel, checks),
         ],
@@ -373,9 +409,54 @@ class _SheetScreenState extends State<SheetScreen> {
         ),
       ),
     );
-    if (res != null) {
-      setState(() => sheet.expectedShots = res);
-      _save();
+    if (res == null || !mounted) return;
+    final more = res > sheet.shots.length;
+    setState(() => sheet.expectedShots = res);
+    await _save();
+    // Több lövés kell, mint amennyit találtunk: keressük újra a lapot ennyi lövésre,
+    // így az egymásba lőtt lyukakat a nagyobb számhoz bontja szét.
+    if (more && sheet.geometry != null && _untouched) await _reanalyze();
+  }
+
+  /// Még nincs kézi javítás a lapon (újrakeresés nem ír felül semmit).
+  bool get _untouched => sheet.shots.every((s) => s.auto && s.override == null);
+
+  Future<void> _reanalyze() async {
+    final store = StoreScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final bytes = await store.imageBytes(sheet);
+      if (bytes == null) throw StateError('nincs kép');
+      final out = await analyzeInBackground(bytes, store.settings.spec, sheet.expectedShots);
+      if (!mounted) return;
+      if (out.error == null && out.width == sheet.imageW && out.height == sheet.imageH) {
+        final before = sheet.shots.length;
+        setState(() {
+          sheet.shots = [
+            for (final m in out.shots)
+              Shot(
+                id: newId(),
+                x: (m['x'] as num).toDouble(),
+                y: (m['y'] as num).toDouble(),
+                uncertain: m['uncertain'] as bool? ?? false,
+                detectNote: m['note'] as String? ?? '',
+              )
+          ];
+          _selected = null;
+        });
+        await _save();
+        final found = sheet.shots.length - before;
+        messenger.showSnackBar(SnackBar(
+            content: Text(found > 0
+                ? 'Újrakeresés: $found további lövést találtam.'
+                : 'Újrakeresés: nem találtam több lövést, a hiányzókat koppintással add hozzá.')));
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Az újrakeresés nem sikerült, a hiányzó lövéseket koppintással add hozzá.')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 

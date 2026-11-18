@@ -17,6 +17,8 @@ class TargetSpec {
   final bool lineTouchCountsHigher;
   final double borderlineMm;
   final double edgeToleranceMm;
+  /// A versenyszabály szerinti lövésszám egy lapon (ettől eltérni szabad, csak jelezzük).
+  final int regulationShots;
 
   const TargetSpec({
     required this.id,
@@ -31,6 +33,7 @@ class TargetSpec {
     this.lineTouchCountsHigher = true,
     this.borderlineMm = 1.5,
     this.edgeToleranceMm = 0.15,
+    this.regulationShots = 15,
   });
 
   static const mdlszGyorspont = TargetSpec(
@@ -62,6 +65,7 @@ class TargetSpec {
         lineTouchCountsHigher: lineTouchCountsHigher ?? this.lineTouchCountsHigher,
         borderlineMm: borderlineMm ?? this.borderlineMm,
         edgeToleranceMm: edgeToleranceMm,
+        regulationShots: regulationShots,
       );
 
   /// A k pontos gyűrű külső sugara gyűrűtávolság-egységben.

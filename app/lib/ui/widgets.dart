@@ -129,8 +129,10 @@ class StatTile extends StatelessWidget {
 
 /// Figyelmeztető sáv (pl. lövésszám-eltérés): korall panel.
 class NoticeCard extends StatelessWidget {
-  const NoticeCard({super.key, required this.text, this.actionLabel, this.onAction, this.icon = Icons.info_outline});
+  const NoticeCard(
+      {super.key, required this.text, this.actionLabel, this.onAction, this.icon = Icons.info_outline, this.color = kCoral});
   final String text;
+  final Color color;
   final String? actionLabel;
   final VoidCallback? onAction;
   final IconData icon;
@@ -139,7 +141,7 @@ class NoticeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     return Panel(
-      color: kCoral,
+      color: color,
       radius: 18,
       padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
       child: Row(

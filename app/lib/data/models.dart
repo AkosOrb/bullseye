@@ -98,6 +98,12 @@ class Sheet {
 
   int get total => views().fold(0, (a, v) => a + v.score);
 
+  /// Szabályos lövésszám a lap típusához (gyorspont: 15).
+  int get regulationShots => spec.regulationShots;
+
+  /// Több lövés van a lapon, mint a szabályos – értékeljük, csak jelezzük.
+  bool get irregular => shots.length > regulationShots;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'createdAt': createdAt.toIso8601String(),

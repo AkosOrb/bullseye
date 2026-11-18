@@ -34,6 +34,15 @@ void main() {
     expect(s.scoreForDistance(6 + rp * 0.9), 8);
   });
 
+  test('15-nél több lövés is kiértékelhető (nem szabályos, de nincs korlát)', () {
+    final (rgb, _) = decodeForEngine(File('../testdata/1_eredeti.png').readAsBytesSync());
+    final res = analyze(rgb, TargetSpec.mdlszGyorspont, expected: 17);
+    // ignore: avoid_print
+    print('17 lövésre: ${res.shots.length} lövés, ${res.total} pont');
+    expect(res.shots.length, greaterThan(15));
+    expect(TargetSpec.mdlszGyorspont.regulationShots, 15);
+  });
+
   final gtFile = File('../testdata/ground_truth.json');
   final gt = jsonDecode(gtFile.readAsStringSync()) as Map<String, dynamic>;
   for (final name in gt.keys.toList()..sort()) {

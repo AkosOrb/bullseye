@@ -41,7 +41,9 @@ class SettingsScreen extends StatelessWidget {
               const Divider(),
               ListTile(
                 title: const Text('Lövések száma egy lapon'),
-                subtitle: const Text('Ennyi lövést vár a felismerés; eltérésnél szól.'),
+                subtitle: Text(s.defaultShots > s.spec.regulationShots
+                    ? 'Ennyi lövést vár a felismerés. ${s.spec.regulationShots}-nél több nem szabályos, de kiértékelhető.'
+                    : 'Ennyi lövést vár a felismerés; eltérésnél szól.'),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   IconButton(
                     tooltip: 'Kevesebb lövés',

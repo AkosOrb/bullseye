@@ -73,7 +73,8 @@ pw.Widget _sheetBlock(Sheet sheet, Uint8List png, String title) {
   return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
     pw.Text(title, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
     pw.SizedBox(height: 4),
-    pw.Text('${views.length} lövés (megadott: ${sheet.expectedShots}) – összesen $total pont'),
+    pw.Text('${views.length} lövés (megadott: ${sheet.expectedShots}) – összesen $total pont'
+        '${sheet.irregular ? ' – nem szabályos (szabályosan ${sheet.regulationShots} lövés)' : ''}'),
     pw.SizedBox(height: 10),
     pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
       pw.Expanded(flex: 3, child: pw.Image(pw.MemoryImage(png), fit: pw.BoxFit.contain, height: 430)),

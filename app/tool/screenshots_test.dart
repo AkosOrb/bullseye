@@ -114,6 +114,43 @@ void main() {
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('screens/04_details.png'));
   });
 
+  testWidgets('törlés után folytatható a javítás', (tester) async {
+    await setup(tester);
+    final sheet = store.sessions.first.sheets.first;
+    await tester.pumpWidget(app(SheetScreen(sheet: sheet)));
+    await settle(tester);
+    final box = tester.getRect(find.byType(InteractiveViewer));
+    final fit = (box.width / sheet.imageW) < (box.height / sheet.imageH) ? box.width / sheet.imageW : box.height / sheet.imageH;
+    final ox = box.left + (box.width - sheet.imageW * fit) / 2, oy = box.top + (box.height - sheet.imageH * fit) / 2;
+    Future<void> tapShot(int i) async {
+      final s = sheet.shots[i];
+      await tester.tapAt(Offset(ox + s.x * fit, oy + s.y * fit));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    await tapShot(3);
+    await tester.tap(find.byTooltip('Lövés törlése'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(sheet.shots.length, 14);
+    // rögtön a következő lövés is kijelölhető és törölhető
+    await tapShot(4);
+    expect(find.byTooltip('Lövés törlése'), findsOneWidget);
+    await tester.tap(find.byTooltip('Lövés törlése'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(sheet.shots.length, 13);
+    // a visszavonás-sáv magától eltűnik, és a hozzáadás gomb használható
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(find.text('Lövés törölve'), findsNothing);
+    await tester.tap(find.text('Lövés hozzáadása').last);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Koppints a lövés helyére a fotón.'), findsOneWidget);
+    await tester.tapAt(box.center);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(sheet.shots.length, 14);
+  });
+
   testWidgets('edzés és statisztika', (tester) async {
     await setup(tester);
     await tester.pumpWidget(app(SessionScreen(session: store.sessions.first)));

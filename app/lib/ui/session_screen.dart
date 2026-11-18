@@ -175,6 +175,7 @@ class _SheetRow extends StatelessWidget {
     final sub = [
       '${fmtTime(sheet.createdAt)} · ${sheet.shots.length} lövés',
       if (mismatch) '${sheet.expectedShots} helyett',
+      if (sheet.irregular) 'nem szabályos',
       if (checks > 0) '$checks ellenőrizendő',
     ].join(' · ');
     return ListTile(
