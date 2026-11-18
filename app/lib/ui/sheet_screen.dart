@@ -28,6 +28,8 @@ class _SheetScreenState extends State<SheetScreen> {
   bool _ringEdit = false; // gyűrűk kézi igazítása
   Offset? _ringDragLast;
   int _pointers = 0;
+  String? _resizedId; // ennek a lövésnek a körét állította át kézzel (még nem kérdeztük)
+  bool _askingResize = false;
   bool _dragging = false;
   Offset? _dragStartShot;
 
@@ -93,6 +95,7 @@ class _SheetScreenState extends State<SheetScreen> {
     setState(() {
       sheet.shots.remove(s);
       _selected = null;
+      if (_resizedId == s.id) _resizedId = null;
     });
     _save();
     // A visszavonás-sáv magától eltűnik (különben az alsó panelt eltakarná,
@@ -121,6 +124,12 @@ class _SheetScreenState extends State<SheetScreen> {
     final total = views.fold<int>(0, (a, v) => a + v.score);
     final checks = views.where((v) => v.needsCheck).toList();
     final diff = sheet.shots.length - sheet.expectedShots;
+    // Egy lövés körének átméretezése után (amikor a kijelölés elmozdul róla)
+    // megkérdezzük, igazítsuk-e hozzá a többi lövést is.
+    if (_resizedId != null && _selected != _resizedId && !_askingResize) {
+      _askingResize = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _askApplyRadius());
+    }
     ShotView? sel;
     for (final v in views) {
       if (v.shot.id == _selected) sel = v;
@@ -425,7 +434,10 @@ class _SheetScreenState extends State<SheetScreen> {
                   onRadius: (f) {
                     final base = sheet.geometry?.pelletRadiusOrig ?? 10;
                     final cur = sel.shot.radius ?? base;
-                    setState(() => sel.shot.radius = (cur * f).clamp(base * 0.5, base * 2.0));
+                    setState(() {
+                      sel.shot.radius = (cur * f).clamp(base * 0.5, base * 2.0);
+                      _resizedId = sel.shot.id;
+                    });
                     _save();
                   },
                   onDelete: _deleteSelected,
@@ -470,6 +482,50 @@ class _SheetScreenState extends State<SheetScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _askApplyRadius() async {
+    final id = _resizedId;
+    _resizedId = null;
+    Shot? src;
+    for (final s in sheet.shots) {
+      if (s.id == id) src = s;
+    }
+    final r = src?.radius;
+    final others = sheet.shots.where((s) => s.id != id).length;
+    if (src == null || r == null || others == 0 || !mounted) {
+      _askingResize = false;
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('A többi lövés körét is igazítsam?'),
+        content: Text('A ${sheet.views().firstWhere((v) => v.shot.id == id).index}. lövés körét átállítottad. '
+            'A többi $others lövés találati köre is legyen ekkora? A pontok ennek megfelelően újraszámolódnak.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Csak ez az egy')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Mindet igazítsd')),
+        ],
+      ),
+    );
+    _askingResize = false;
+    if (ok != true || !mounted) return;
+    final before = sheet.total;
+    setState(() {
+      for (final s in sheet.shots) {
+        s.radius = r;
+      }
+    });
+    await _save();
+    if (!mounted) return;
+    final d = sheet.total - before;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+          content: Text(d == 0
+              ? 'Minden lövés köre igazítva, az összpontszám nem változott.'
+              : 'Minden lövés köre igazítva, az összpontszám ${d > 0 ? '+' : ''}$d ponttal változott.')));
   }
 
   /// A gyűrűk eltolása a fotón mért (dx, dy) képponttal; a pontok azonnal újraszámolódnak.

@@ -177,6 +177,32 @@ void main() {
     expect(find.text('Gyűrűk igazítása'), findsOneWidget);
   });
 
+  testWidgets('kör átméretezése után rákérdez a többire', (tester) async {
+    await setup(tester);
+    final sheet = store.sessions.first.sheets.first;
+    await tester.pumpWidget(app(SheetScreen(sheet: sheet)));
+    await settle(tester);
+    final box = tester.getRect(find.byType(InteractiveViewer));
+    final fit = (box.width / sheet.imageW) < (box.height / sheet.imageH) ? box.width / sheet.imageW : box.height / sheet.imageH;
+    final ox = box.left + (box.width - sheet.imageW * fit) / 2, oy = box.top + (box.height - sheet.imageH * fit) / 2;
+    final s = sheet.shots[2];
+    await tester.tapAt(Offset(ox + s.x * fit, oy + s.y * fit));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byTooltip('Nagyobb találati kör'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Nagyobb találati kör'));
+    await tester.pump();
+    final r = s.radius!;
+    await tester.tap(find.byTooltip('Kijelölés megszüntetése'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('A többi lövés körét is igazítsam?'), findsOneWidget);
+    await tester.tap(find.text('Mindet igazítsd'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(sheet.shots.every((x) => x.radius == r), isTrue);
+  });
+
   testWidgets('edzés és statisztika', (tester) async {
     await setup(tester);
     await tester.pumpWidget(app(SessionScreen(session: store.sessions.first)));
